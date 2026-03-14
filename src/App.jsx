@@ -241,320 +241,158 @@ function PdfSelectModal({onClose, onGenerate}) {
 
 function PdfPrintModal({c, customerName, similarCases, onClose}) {
   const csi = STYLES_DEF[c.style]||STYLES_DEF["ナチュラル"];
-  const allImages = [c.image,...(c.images||[])].filter(Boolean);
-  const f1 = (c.rooms||[]).filter(r=>r.floor===1);
-  const f2 = (c.rooms||[]).filter(r=>r.floor===2);
+  const mainImage = c.image;
+  const subImages = (c.images||[]).filter(Boolean);
+  // A3横: 420mm x 297mm
+  const A3_STYLE = {width:"420mm",minHeight:"297mm",background:"white",boxSizing:"border-box",position:"relative",overflow:"hidden"};
 
   function doPrint() {
-    // show print area, print, hide
     const el = document.querySelector(".pdf-print-area");
-    if(el){ el.style.display="block"; window.print(); el.style.display="none"; }
+    if(el){ el.style.display="block"; window.print(); setTimeout(()=>{ el.style.display="none"; }, 1000); }
   }
 
-  const pageBase = {fontFamily:"'Noto Serif JP','Georgia',serif",padding:"32px 40px",minHeight:"277mm",boxSizing:"border-box",position:"relative"};
+  // ─── プレビュー用の各ページ（縮小表示）────────────────────
+  const previewScale = {transform:"scale(0.42)",transformOrigin:"top left",width:"420mm",minHeight:"297mm"};
+  const previewWrap = (key, child) => (
+    <div key={key} style={{width:"calc(420mm * 0.42)",height:"calc(297mm * 0.42)",overflow:"hidden",borderRadius:8,border:"1px solid #e8e2d8",flexShrink:0}}>
+      <div style={previewScale}>{child}</div>
+    </div>
+  );
+
+  // P1: 表紙
+  const page1 = (
+    <div style={{...A3_STYLE,background:"#1a1612",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+      {mainImage&&<div style={{position:"absolute",inset:0,backgroundImage:`url(${mainImage})`,backgroundSize:"cover",backgroundPosition:"center",opacity:.12}}/>}
+      <div style={{position:"relative",flex:1,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",textAlign:"center",padding:"60px 80px"}}>
+        <div style={{color:"#c9a96e",fontSize:14,letterSpacing:".5em",marginBottom:20}}>HOUSING PROPOSAL</div>
+        <h1 style={{color:"white",fontSize:54,fontWeight:700,margin:"0 0 14px",lineHeight:1.4,letterSpacing:".04em"}}>{customerName}様邸<br/>おすすめプラン</h1>
+        <div style={{color:"rgba(255,255,255,.5)",fontSize:17,marginTop:10}}>{c.style} / {c.layout} / {c.floors}</div>
+      </div>
+      <div style={{position:"relative",background:"rgba(255,255,255,.06)",borderTop:"1px solid rgba(255,255,255,.1)",padding:"28px 80px",display:"flex",gap:40,flexWrap:"wrap"}}>
+        {[{l:"建物タイプ",v:c.buildType},{l:"スタイル",v:c.style},{l:"間取り",v:c.layout},{l:"階数",v:c.floors},{l:"坪数",v:c.tsubo?c.tsubo+"坪":"—"},{l:"予算目安",v:c.budget}].map(s=>(
+          <div key={s.l}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,.35)",letterSpacing:".15em",marginBottom:5}}>{s.l}</div>
+            <div style={{fontSize:18,fontWeight:700,color:"white"}}>{s.v||"—"}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // P2: タイトル＋サブタイトル＋メイン画像
+  const page2 = (
+    <div style={{...A3_STYLE,display:"flex",flexDirection:"column"}}>
+      <div style={{background:csi.light,padding:"32px 60px 24px",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+        <div style={{display:"flex",gap:10,marginBottom:10}}>
+          <span style={{background:csi.accent,color:"white",padding:"4px 14px",borderRadius:20,fontSize:13,fontWeight:700}}>{c.style}</span>
+          {c.buildType&&<span style={{background:"#e8e2d8",color:"#5a4a3a",padding:"4px 13px",borderRadius:20,fontSize:12}}>{c.buildType}</span>}
+        </div>
+        <h2 style={{margin:"0 0 8px",fontSize:38,fontWeight:700,color:"#1a1612",lineHeight:1.3}}>{c.title}</h2>
+        <p style={{margin:0,fontSize:17,color:"#7a6a5a",lineHeight:1.6}}>{c.subtitle}</p>
+      </div>
+      <div style={{flex:1,overflow:"hidden",background:"#111"}}>
+        {mainImage
+          ?<img src={mainImage} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+          :<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:csi.light}}><HouseIllust style={c.style}/></div>
+        }
+      </div>
+    </div>
+  );
+
+  // P3〜: サブ画像を1枚ずつフルページ
+  const subPages = subImages.map((img,i)=>(
+    <div key={i} style={{...A3_STYLE,background:"#111",display:"flex",alignItems:"stretch"}}>
+      <img src={img} style={{width:"100%",objectFit:"cover",display:"block"}}/>
+      <div style={{position:"absolute",bottom:20,right:28,color:"rgba(255,255,255,.5)",fontSize:13}}>{i+2} / {subImages.length+1}</div>
+    </div>
+  ));
+
+  // 最終ページ: ハイライト＋金額＋大きさ（3カラム横並び）
+  const lastPage = (
+    <div style={{...A3_STYLE,display:"flex",flexDirection:"column",padding:"50px 70px",gap:0}}>
+      <div style={{fontSize:11,color:"#a89a8a",letterSpacing:".3em",marginBottom:32}}>HIGHLIGHTS & PRICE & SIZE</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:40,flex:1}}>
+        {/* ハイライト */}
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:csi.accent,marginBottom:18,paddingBottom:8,borderBottom:`2px solid ${csi.accent}`}}>ハイライト</div>
+          {(c.highlights||[]).filter(Boolean).map((h,i)=>(
+            <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:16}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:csi.accent,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>{i+1}</div>
+              <div style={{fontSize:14,lineHeight:1.8,paddingTop:4,color:"#2a201a"}}>{h}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* 想定建築価格 */}
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:csi.accent,marginBottom:18,paddingBottom:8,borderBottom:`2px solid ${csi.accent}`}}>想定建築価格</div>
+          <div style={{background:"#1a1612",borderRadius:12,padding:"32px 24px",textAlign:"center",marginBottom:16}}>
+            <div style={{fontSize:11,color:"#6a5a4a",letterSpacing:".2em",marginBottom:10}}>予算目安</div>
+            <div style={{fontSize:34,fontWeight:700,color:"#c9a96e",lineHeight:1.2}}>{c.budget||"—"}</div>
+            {c.tsubo&&<div style={{color:"rgba(255,255,255,.4)",fontSize:13,marginTop:10}}>坪数: {c.tsubo}坪</div>}
+          </div>
+          {c.area?.total&&<div style={{background:csi.light,borderRadius:8,padding:"14px 18px",textAlign:"center"}}>
+            <div style={{fontSize:10,color:"#a89a8a",marginBottom:4}}>延床面積</div>
+            <div style={{fontSize:24,fontWeight:700,color:csi.accent}}>{c.area.total}<span style={{fontSize:14,fontWeight:400}}>㎡</span></div>
+          </div>}
+        </div>
+
+        {/* 大きさ */}
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:csi.accent,marginBottom:18,paddingBottom:8,borderBottom:`2px solid ${csi.accent}`}}>大きさ</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {[{l:"坪数",v:c.tsubo?c.tsubo+"坪":"—"},{l:"延床面積",v:c.area?.total?c.area.total+"㎡":"—"},{l:"建築面積",v:c.area?.building?c.area.building+"㎡":"—"},{l:"敷地面積",v:c.area?.land?c.area.land+"㎡":"—"}].map(s=>(
+              <div key={s.l} style={{background:"#f5f2ee",borderRadius:8,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:12,color:"#8a7a6a"}}>{s.l}</span>
+                <span style={{fontSize:20,fontWeight:700,color:"#1a1612"}}>{s.v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const allPages = [page1, page2, ...subPages, lastPage];
 
   return(
     <>
-      {/* Preview modal */}
-      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:600,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 16px",fontFamily:"'Noto Serif JP','Georgia',serif"}}>
-        <div style={{background:"white",borderRadius:14,padding:"20px 24px",width:"100%",maxWidth:680,marginBottom:16}}>
+      {/* プレビューモーダル */}
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:600,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",padding:"20px 16px",fontFamily:"'Noto Serif JP','Georgia',serif"}}>
+        <div style={{background:"white",borderRadius:12,padding:"18px 22px",width:"100%",maxWidth:800,marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div><h2 style={{margin:0,fontSize:17}}>プレゼン資料プレビュー</h2><p style={{margin:"3px 0 0",fontSize:12,color:"#8a7a6a"}}>{customerName}様邸おすすめプラン</p></div>
+            <div>
+              <h2 style={{margin:0,fontSize:16}}>プレゼン資料プレビュー</h2>
+              <p style={{margin:"3px 0 0",fontSize:12,color:"#8a7a6a"}}>A3横 / {allPages.length}ページ / {customerName}様邸</p>
+            </div>
             <div style={{display:"flex",gap:10}}>
               <button onClick={onClose} style={{padding:"8px 16px",border:"1px solid #d4cfc5",borderRadius:8,background:"white",cursor:"pointer",fontSize:13}}>閉じる</button>
-              <button onClick={doPrint} style={{padding:"8px 20px",background:"#1a1612",color:"#c9a96e",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>📥 PDF保存 / 印刷</button>
+              <button onClick={doPrint} style={{padding:"8px 22px",background:"#1a1612",color:"#c9a96e",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>📥 PDF保存 / 印刷</button>
             </div>
           </div>
-          <div style={{marginTop:12,padding:"10px 14px",background:"#f5f0e8",borderRadius:8,fontSize:12,color:"#7a6a5a"}}>
-            💡 「PDF保存 / 印刷」ボタンを押し、印刷ダイアログで「<b>PDFに保存</b>」を選択してください
+          <div style={{marginTop:10,padding:"9px 13px",background:"#f5f0e8",borderRadius:7,fontSize:12,color:"#7a6a5a"}}>
+            💡 「PDF保存 / 印刷」→ 印刷ダイアログで <b>「PDFに保存」</b>・用紙サイズ <b>「A3」</b>・向き <b>「横」</b> を選択してください
           </div>
         </div>
 
-        {/* Preview pages */}
-        <div style={{width:"100%",maxWidth:680,display:"flex",flexDirection:"column",gap:12}}>
-
-          {/* P1: 表紙 */}
-          <div style={{background:"white",borderRadius:12,overflow:"hidden",boxShadow:"0 4px 20px rgba(0,0,0,.12)"}}>
-            <div style={{background:"#1a1612",padding:"60px 48px 50px",textAlign:"center",position:"relative"}}>
-              {c.image&&<div style={{position:"absolute",inset:0,backgroundImage:`url(${c.image})`,backgroundSize:"cover",backgroundPosition:"center",opacity:.18}}/>}
-              <div style={{position:"relative"}}>
-                <div style={{color:"#c9a96e",fontSize:11,letterSpacing:".3em",marginBottom:14}}>HOUSING PROPOSAL</div>
-                <h1 style={{color:"white",fontSize:28,fontWeight:700,margin:"0 0 8px",lineHeight:1.4}}>{customerName}様邸<br/>おすすめプラン</h1>
-                <div style={{color:"rgba(255,255,255,.6)",fontSize:13,marginTop:16}}>{c.style} / {c.layout} / {c.floors}</div>
-              </div>
-            </div>
-            <div style={{padding:"24px 32px",display:"flex",gap:16,flexWrap:"wrap"}}>
-              {[{l:"建物タイプ",v:c.buildType},{l:"スタイル",v:c.style},{l:"間取り",v:c.layout},{l:"階数",v:c.floors},{l:"坪数",v:c.tsubo?c.tsubo+"坪":"—"},{l:"予算目安",v:c.budget}].map(s=>(
-                <div key={s.l} style={{flex:"1 1 120px"}}>
-                  <div style={{fontSize:10,color:"#a89a8a",marginBottom:3}}>{s.l}</div>
-                  <div style={{fontSize:14,fontWeight:700,color:"#1a1612"}}>{s.v||"—"}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* P2: 間取り画像 */}
-          <div style={{background:"white",borderRadius:12,padding:"28px 32px",boxShadow:"0 2px 10px rgba(0,0,0,.07)"}}>
-            <div style={{fontSize:11,color:"#a89a8a",letterSpacing:".2em",marginBottom:16}}>FLOOR PLAN & PHOTOS</div>
-            {allImages.length>0?(
-              <div style={{display:"grid",gridTemplateColumns:allImages.length===1?"1fr":"1fr 1fr",gap:10}}>
-                {allImages.slice(0,4).map((img,i)=>(
-                  <div key={i} style={{borderRadius:8,overflow:"hidden",aspectRatio:"4/3",background:"#f5f0e8"}}>
-                    <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  </div>
-                ))}
-              </div>
-            ):(
-              <div style={{height:200,display:"flex",alignItems:"center",justifyContent:"center",background:"#f5f0e8",borderRadius:8}}>
-                <HouseIllust style={c.style}/>
-              </div>
-            )}
-            {(f1.length>0||f2.length>0)&&(
-              <div style={{marginTop:20,display:"grid",gridTemplateColumns:f2.length>0?"1fr 1fr":"1fr",gap:16}}>
-                {[{label:c.floors==="平屋"?"平屋":"1階",rooms:f1},...(f2.length>0?[{label:"2階",rooms:f2}]:[])].map(({label,rooms:rl})=>(
-                  <div key={label}>
-                    <div style={{fontSize:11,fontWeight:700,color:csi.accent,marginBottom:7,paddingBottom:4,borderBottom:`2px solid ${csi.accent}`}}>{label}</div>
-                    {rl.map((r,i)=>(
-                      <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid #f5f0e8",fontSize:12}}>
-                        <span style={{color:"#3a3028"}}>{r.name}</span>
-                        <span style={{fontWeight:700,color:csi.accent}}>{r.jyou||r.area}{(r.jyou||r.area)?"帖":""}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* P3: コンセプト */}
-          {c.concept&&(
-            <div style={{background:"white",borderRadius:12,padding:"28px 32px",boxShadow:"0 2px 10px rgba(0,0,0,.07)"}}>
-              <div style={{fontSize:11,color:"#a89a8a",letterSpacing:".2em",marginBottom:14}}>CONCEPT</div>
-              <p style={{fontSize:14,lineHeight:2.1,color:"#2a201a",margin:0}}>{c.concept}</p>
-              <div style={{marginTop:20,padding:"16px 20px",background:csi.light,borderRadius:8,borderLeft:`4px solid ${csi.accent}`}}>
-                <span style={{fontSize:12,color:"#5a4a3a"}}>{c.location} / {c.year}年竣工</span>
-              </div>
-            </div>
-          )}
-
-          {/* P4: ハイライト・こだわり */}
-          {((c.highlights||[]).filter(Boolean).length>0||(c.features||[]).length>0)&&(
-            <div style={{background:"white",borderRadius:12,padding:"28px 32px",boxShadow:"0 2px 10px rgba(0,0,0,.07)"}}>
-              <div style={{fontSize:11,color:"#a89a8a",letterSpacing:".2em",marginBottom:16}}>HIGHLIGHTS & FEATURES</div>
-              {(c.highlights||[]).filter(Boolean).length>0&&(
-                <div style={{marginBottom:18}}>
-                  {(c.highlights||[]).filter(Boolean).map((h,i)=>(
-                    <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:11}}>
-                      <div style={{width:24,height:24,borderRadius:"50%",background:csi.accent,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
-                      <div style={{fontSize:13,lineHeight:1.7,paddingTop:3}}>{h}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {(c.features||[]).length>0&&(
-                <div>
-                  <div style={{fontSize:11,color:"#a89a8a",marginBottom:9}}>こだわりポイント</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                    {(c.features||[]).map(f=><span key={f} style={{padding:"5px 12px",borderRadius:20,fontSize:12,background:csi.light,color:csi.accent,border:`1px solid ${csi.accent}30`,fontWeight:600}}>{f}</span>)}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* P5: 想定建築価格 */}
-          <div style={{background:"white",borderRadius:12,padding:"28px 32px",boxShadow:"0 2px 10px rgba(0,0,0,.07)"}}>
-            <div style={{fontSize:11,color:"#a89a8a",letterSpacing:".2em",marginBottom:16}}>ESTIMATED PRICE</div>
-            <div style={{background:"#1a1612",borderRadius:10,padding:"28px 32px",textAlign:"center"}}>
-              <div style={{fontSize:11,color:"#6a5a4a",letterSpacing:".2em",marginBottom:8}}>想定建築価格</div>
-              <div style={{fontSize:36,fontWeight:700,color:"#c9a96e"}}>{c.budget||"—"}</div>
-              {c.tsubo&&<div style={{color:"rgba(255,255,255,.5)",fontSize:12,marginTop:6}}>坪数: {c.tsubo}坪</div>}
-            </div>
-            <div style={{marginTop:16,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-              {[{l:"延床面積",v:c.area?.total?c.area.total+"㎡":"—"},{l:"建築面積",v:c.area?.building?c.area.building+"㎡":"—"},{l:"敷地面積",v:c.area?.land?c.area.land+"㎡":"—"}].map(s=>(
-                <div key={s.l} style={{background:"#f5f2ee",borderRadius:8,padding:"12px 14px",textAlign:"center"}}>
-                  <div style={{fontSize:10,color:"#a89a8a",marginBottom:4}}>{s.l}</div>
-                  <div style={{fontSize:16,fontWeight:700,color:"#3a3028"}}>{s.v}</div>
-                </div>
-              ))}
-            </div>
-            {/* 設備仕様 */}
-            {c.specs&&Object.values(c.specs).some(v=>v)&&(
-              <div style={{marginTop:16}}>
-                <div style={{fontSize:11,color:"#a89a8a",marginBottom:10}}>主な仕様</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                  {[["kitchen","キッチン"],["bath","浴室"],["insulationGrade","断熱等級"],["quakeGrade","耐震等級"],["solarKw","太陽光"],["ventilation","換気"]].filter(([k])=>c.specs[k]).map(([k,l])=>(
-                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"5px 10px",background:"#faf8f5",borderRadius:6,fontSize:12}}>
-                      <span style={{color:"#8a7a6a"}}>{l}</span>
-                      <span style={{fontWeight:700,color:"#3a3028"}}>{c.specs[k]}{k==="solarKw"?"kW":""}{k==="insulationGrade"||k==="quakeGrade"?"等級":""}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* P6: 類似施工事例 */}
-          {similarCases.length>0&&(
-            <div style={{background:"white",borderRadius:12,padding:"28px 32px",boxShadow:"0 2px 10px rgba(0,0,0,.07)"}}>
-              <div style={{fontSize:11,color:"#a89a8a",letterSpacing:".2em",marginBottom:16}}>SIMILAR CASES</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-                {similarCases.map(rc=>{
-                  const rsi=STYLES_DEF[rc.style]||STYLES_DEF["ナチュラル"];
-                  return(
-                    <div key={rc._sbId} style={{borderRadius:9,overflow:"hidden",border:"1px solid #e8e2d8"}}>
-                      <div style={{height:90,background:rsi.light,position:"relative",overflow:"hidden"}}>
-                        {rc.image?<img src={rc.image} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<HouseIllust style={rc.style}/>}
-                        <div style={{position:"absolute",top:5,left:5,background:rsi.accent,color:"white",padding:"2px 8px",borderRadius:20,fontSize:9,fontWeight:700}}>{rc.style}</div>
-                      </div>
-                      <div style={{padding:"10px 12px"}}>
-                        <div style={{fontSize:12,fontWeight:700,marginBottom:2,lineHeight:1.4}}>{rc.title}</div>
-                        <div style={{fontSize:11,color:"#8a7a6a"}}>{rc.layout} / {rc.tsubo?rc.tsubo+"坪":(rc.area?.total||"")+"㎡"}</div>
-                        <div style={{fontSize:11,color:rsi.accent,fontWeight:600,marginTop:2}}>{rc.budget}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        {/* 横スクロールでページ並べて表示 */}
+        <div style={{display:"flex",gap:16,overflowX:"auto",padding:"8px 0",width:"100%",maxWidth:900}}>
+          {allPages.map((page, i) => previewWrap(i, page))}
         </div>
-        <div style={{height:24}}/>
+        <div style={{marginTop:8,fontSize:12,color:"rgba(255,255,255,.5)"}}>{allPages.length}ページ構成 — 横スクロールで全ページ確認できます</div>
+        <div style={{height:20}}/>
       </div>
 
       {/* 印刷用の非表示エリア */}
       <div className="pdf-print-area" style={{fontFamily:"'Noto Serif JP','Georgia',serif",background:"white"}}>
-
-        {/* 印刷P1: 表紙 */}
-        <div className="pdf-page" style={{background:"white",minHeight:"297mm",display:"flex",flexDirection:"column",justifyContent:"space-between",padding:0}}>
-          <div style={{background:"#1a1612",padding:"80px 60px 70px",flex:1,display:"flex",flexDirection:"column",justifyContent:"center",textAlign:"center",position:"relative"}}>
-            {c.image&&<div style={{position:"absolute",inset:0,backgroundImage:`url(${c.image})`,backgroundSize:"cover",backgroundPosition:"center",opacity:.15}}/>}
-            <div style={{position:"relative"}}>
-              <div style={{color:"#c9a96e",fontSize:10,letterSpacing:".4em",marginBottom:20}}>HOUSING PROPOSAL</div>
-              <h1 style={{color:"white",fontSize:36,fontWeight:700,margin:"0 0 12px",lineHeight:1.5}}>{customerName}様邸<br/>おすすめプラン</h1>
-              <div style={{color:"rgba(255,255,255,.5)",fontSize:14,marginTop:20}}>{c.style} / {c.layout} / {c.floors}</div>
-            </div>
-          </div>
-          <div style={{padding:"32px 60px",background:"white",display:"flex",gap:20,flexWrap:"wrap"}}>
-            {[{l:"建物タイプ",v:c.buildType},{l:"スタイル",v:c.style},{l:"間取り",v:c.layout},{l:"階数",v:c.floors},{l:"坪数",v:c.tsubo?c.tsubo+"坪":"—"},{l:"予算目安",v:c.budget}].map(s=>(
-              <div key={s.l} style={{flex:"1 1 130px"}}>
-                <div style={{fontSize:9,color:"#a89a8a",marginBottom:4}}>{s.l}</div>
-                <div style={{fontSize:16,fontWeight:700,color:"#1a1612"}}>{s.v||"—"}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 印刷P2: 画像・間取り */}
-        <div className="pdf-page" style={{padding:"50px 60px",background:"white",minHeight:"297mm"}}>
-          <div style={{fontSize:9,color:"#a89a8a",letterSpacing:".3em",marginBottom:20}}>FLOOR PLAN & PHOTOS</div>
-          {allImages.length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:allImages.length===1?"1fr":"1fr 1fr",gap:12,marginBottom:28}}>
-              {allImages.slice(0,4).map((img,i)=>(
-                <div key={i} style={{borderRadius:8,overflow:"hidden",aspectRatio:"4/3"}}>
-                  <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                </div>
-              ))}
-            </div>
-          )}
-          {(f1.length>0||f2.length>0)&&(
-            <div style={{display:"grid",gridTemplateColumns:f2.length>0?"1fr 1fr":"1fr",gap:24}}>
-              {[{label:c.floors==="平屋"?"平屋":"1階",rooms:f1},...(f2.length>0?[{label:"2階",rooms:f2}]:[])].map(({label,rooms:rl})=>(
-                <div key={label}>
-                  <div style={{fontSize:12,fontWeight:700,color:csi.accent,marginBottom:8,paddingBottom:5,borderBottom:`2px solid ${csi.accent}`}}>{label}</div>
-                  {rl.map((r,i)=>(
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f0ebe0",fontSize:13}}>
-                      <span>{r.name}</span><span style={{fontWeight:700,color:csi.accent}}>{r.jyou||r.area}{(r.jyou||r.area)?"帖":""}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 印刷P3: コンセプト＋ハイライト */}
-        <div className="pdf-page" style={{padding:"50px 60px",background:"white",minHeight:"297mm"}}>
-          <div style={{fontSize:9,color:"#a89a8a",letterSpacing:".3em",marginBottom:20}}>CONCEPT & HIGHLIGHTS</div>
-          {c.concept&&(
-            <div style={{marginBottom:32}}>
-              <p style={{fontSize:14,lineHeight:2.2,color:"#2a201a",margin:"0 0 16px"}}>{c.concept}</p>
-              <div style={{padding:"14px 18px",background:csi.light,borderRadius:7,borderLeft:`4px solid ${csi.accent}`,fontSize:12,color:"#5a4a3a"}}>{c.location} / {c.year}年竣工</div>
-            </div>
-          )}
-          {(c.highlights||[]).filter(Boolean).map((h,i)=>(
-            <div key={i} style={{display:"flex",gap:14,alignItems:"flex-start",marginBottom:14}}>
-              <div style={{width:26,height:26,borderRadius:"50%",background:csi.accent,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{i+1}</div>
-              <div style={{fontSize:14,lineHeight:1.8,paddingTop:3}}>{h}</div>
-            </div>
-          ))}
-          {(c.features||[]).length>0&&(
-            <div style={{marginTop:24}}>
-              <div style={{fontSize:9,color:"#a89a8a",marginBottom:10}}>こだわりポイント</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{(c.features||[]).map(f=><span key={f} style={{padding:"5px 13px",borderRadius:20,fontSize:12,background:csi.light,color:csi.accent,border:`1px solid ${csi.accent}30`,fontWeight:600}}>{f}</span>)}</div>
-            </div>
-          )}
-        </div>
-
-        {/* 印刷P4: 価格・仕様 */}
-        <div className="pdf-page" style={{padding:"50px 60px",background:"white",minHeight:"297mm"}}>
-          <div style={{fontSize:9,color:"#a89a8a",letterSpacing:".3em",marginBottom:20}}>ESTIMATED PRICE & SPECS</div>
-          <div style={{background:"#1a1612",borderRadius:10,padding:"36px 40px",textAlign:"center",marginBottom:24}}>
-            <div style={{fontSize:10,color:"#6a5a4a",letterSpacing:".2em",marginBottom:10}}>想定建築価格</div>
-            <div style={{fontSize:40,fontWeight:700,color:"#c9a96e"}}>{c.budget||"—"}</div>
-            {c.tsubo&&<div style={{color:"rgba(255,255,255,.4)",fontSize:13,marginTop:8}}>坪数: {c.tsubo}坪</div>}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:24}}>
-            {[{l:"延床面積",v:c.area?.total?c.area.total+"㎡":"—"},{l:"建築面積",v:c.area?.building?c.area.building+"㎡":"—"},{l:"敷地面積",v:c.area?.land?c.area.land+"㎡":"—"}].map(s=>(
-              <div key={s.l} style={{background:"#f5f2ee",borderRadius:8,padding:"14px 16px",textAlign:"center"}}>
-                <div style={{fontSize:10,color:"#a89a8a",marginBottom:5}}>{s.l}</div>
-                <div style={{fontSize:18,fontWeight:700,color:"#3a3028"}}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-          {c.specs&&Object.values(c.specs).some(v=>v)&&(
-            <div>
-              <div style={{fontSize:10,color:"#a89a8a",marginBottom:10}}>主な仕様</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
-                {[["kitchen","キッチン"],["bath","浴室"],["washroom","洗面化粧台"],["toilet","トイレ"],["floorInsulation","床断熱"],["wallInsulation","壁断熱"],["insulationGrade","断熱等級"],["quakeGrade","耐震等級"],["solarKw","太陽光"],["batteryKwh","蓄電池"],["ventilation","換気システム"],["longLife","長期優良住宅"]].filter(([k])=>c.specs[k]).map(([k,l])=>(
-                  <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 10px",background:"#faf8f5",borderRadius:6,fontSize:12}}>
-                    <span style={{color:"#8a7a6a"}}>{l}</span>
-                    <span style={{fontWeight:700,color:"#3a3028"}}>{c.specs[k]}{k==="solarKw"?"kW":""}{k==="batteryKwh"?"kWh":""}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 印刷P5: 類似施工事例 */}
-        {similarCases.length>0&&(
-          <div style={{padding:"50px 60px",background:"white",minHeight:"148mm"}}>
-            <div style={{fontSize:9,color:"#a89a8a",letterSpacing:".3em",marginBottom:20}}>SIMILAR CASES</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-              {similarCases.map(rc=>{
-                const rsi=STYLES_DEF[rc.style]||STYLES_DEF["ナチュラル"];
-                return(
-                  <div key={rc._sbId} style={{borderRadius:9,overflow:"hidden",border:"1px solid #e8e2d8"}}>
-                    <div style={{height:100,background:rsi.light,position:"relative",overflow:"hidden"}}>
-                      {rc.image?<img src={rc.image} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<HouseIllust style={rc.style}/>}
-                      <div style={{position:"absolute",top:5,left:5,background:rsi.accent,color:"white",padding:"2px 7px",borderRadius:20,fontSize:9,fontWeight:700}}>{rc.style}</div>
-                    </div>
-                    <div style={{padding:"10px 12px"}}>
-                      <div style={{fontSize:13,fontWeight:700,marginBottom:3}}>{rc.title}</div>
-                      <div style={{fontSize:11,color:"#8a7a6a",marginBottom:2}}>{rc.layout} / {rc.tsubo?rc.tsubo+"坪":(rc.area?.total||"—")+"㎡"}</div>
-                      <div style={{fontSize:12,color:rsi.accent,fontWeight:600}}>{rc.budget}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {allPages.map((page,i)=>(
+          <div key={i} className="pdf-page">{page}</div>
+        ))}
       </div>
     </>
   );
 }
+
 
 export default function App(){
   const envConfig=SUPABASE_URL&&SUPABASE_KEY?{url:SUPABASE_URL,key:SUPABASE_KEY}:null;
@@ -657,7 +495,7 @@ export default function App(){
 
   return(
     <div style={{fontFamily:"'Noto Serif JP','Georgia',serif",background:"#faf8f5",minHeight:"100vh",color:"#1a1612"}}>
-      <style>{`*{box-sizing:border-box}button,input,textarea,select{font-family:inherit}.card{transition:transform .2s,box-shadow .2s;cursor:pointer}.card:hover{transform:translateY(-3px);box-shadow:0 12px 36px rgba(0,0,0,.1)!important}@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.thumb-img{cursor:pointer;transition:opacity .15s}.thumb-img:hover{opacity:.8}@media print{body>*{display:none!important}.pdf-print-area{display:block!important}}.pdf-print-area{display:none}.pdf-page{page-break-after:always;page-break-inside:avoid}`}</style>
+      <style>{`*{box-sizing:border-box}button,input,textarea,select{font-family:inherit}.card{transition:transform .2s,box-shadow .2s;cursor:pointer}.card:hover{transform:translateY(-3px);box-shadow:0 12px 36px rgba(0,0,0,.1)!important}@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.thumb-img{cursor:pointer;transition:opacity .15s}.thumb-img:hover{opacity:.8}@media print{body>*{display:none!important}.pdf-print-area{display:block!important}@page{size:A3 landscape;margin:0}}.pdf-print-area{display:none}.pdf-page{page-break-after:always;page-break-inside:avoid;width:420mm;min-height:297mm}`}</style>
 
       {pdfSelectModal&&<PdfSelectModal onClose={()=>{setPdfSelectModal(null);setPdfCustomerName("");}} onGenerate={name=>{setPdfModal({c:pdfSelectModal,customerName:name});setPdfSelectModal(null);}}/>}
       {pdfModal&&<PdfPrintModal c={pdfModal.c} customerName={pdfModal.customerName} similarCases={cases.filter(x=>x._sbId!==pdfModal.c._sbId&&(x.layout===pdfModal.c.layout||x.style===pdfModal.c.style)).slice(0,3)} onClose={()=>setPdfModal(null)}/>}
