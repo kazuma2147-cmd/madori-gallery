@@ -19,7 +19,8 @@ const FLOOR_LIST      = ["平屋","半平屋","2階建て"];
 const BUILD_TYPE_LIST = ["注文住宅","規格住宅"];
 const STRUCT_LIST     = ["木造軸組","木造2×4","鉄骨造","RC造"];
 const DIR_LIST        = ["北","北東","東","南東","南","南西","西","北西"];
-const BUDGET_LIST     = ["〜1,500万円","1,500〜2,000万円","2,000〜2,500万円","2,500〜3,000万円","3,000〜3,500万円","3,500〜4,000万円","4,000万円〜"];
+const BUDGET_LIST     = ["〜1,000万円","1,000〜1,500万円","1,500〜2,000万円","2,000〜2,500万円","2,500〜3,000万円","3,000〜3,500万円","3,500〜4,000万円","4,000〜4,500万円","4,500〜5,000万円","5,000万円〜"];
+const TSUBO_LIST      = ["指定なし","〜20坪","20〜25坪","25〜30坪","30〜35坪","35〜40坪","40〜45坪","45〜50坪","50坪〜"];
 
 const FEAT_CATEGORIES = [
   { label:"① 家事・生活動線", items:["回遊動線","家事ラク動線","洗濯完結動線","玄関直通洗面"] },
@@ -216,7 +217,7 @@ export default function App() {
   const [favorites,setFavorites]=useState(new Set());
   const [filterBuildType,setFBuildType]=useState(""); const [filterStyle,setFStyle]=useState("");
   const [filterLayout,setFLayout]=useState(""); const [filterFloor,setFFloor]=useState("");
-  const [filterBudget,setFBudget]=useState(""); const [filterTsuboMin,setFTsuboMin]=useState(""); const [filterTsuboMax,setFTsuboMax]=useState("");
+  const [filterBudget,setFBudget]=useState("指定なし"); const [filterTsubo,setFTsubo]=useState("指定なし");
   const [filterFeatures,setFFeatures]=useState([]); const [showFavs,setShowFavs]=useState(false);
   const [detailTab,setDetailTab]=useState("concept"); const [detailImgIdx,setDetailImgIdx]=useState(0);
   const [adminUnlocked,setAdminUnlocked]=useState(false); const [pwInput,setPwInput]=useState(""); const [pwError,setPwError]=useState(false);
@@ -236,17 +237,26 @@ export default function App() {
     if(filterStyle&&c.style!==filterStyle)return false;
     if(filterLayout&&c.layout!==filterLayout)return false;
     if(filterFloor&&c.floors!==filterFloor)return false;
-    if(filterBudget&&!matchBudget(c.budget,filterBudget))return false;
-    if(filterTsuboMin&&Number(c.tsubo)<Number(filterTsuboMin))return false;
-    if(filterTsuboMax&&Number(c.tsubo)>Number(filterTsuboMax))return false;
+    if(filterBudget&&filterBudget!=="指定なし"&&!matchBudget(c.budget,filterBudget))return false;
+    if(filterTsubo&&filterTsubo!=="指定なし"){
+      const t=Number(c.tsubo)||0;
+      if(filterTsubo==="〜20坪"&&t>=20)return false;
+      else if(filterTsubo==="20〜25坪"&&(t<20||t>=25))return false;
+      else if(filterTsubo==="25〜30坪"&&(t<25||t>=30))return false;
+      else if(filterTsubo==="30〜35坪"&&(t<30||t>=35))return false;
+      else if(filterTsubo==="35〜40坪"&&(t<35||t>=40))return false;
+      else if(filterTsubo==="40〜45坪"&&(t<40||t>=45))return false;
+      else if(filterTsubo==="45〜50坪"&&(t<45||t>=50))return false;
+      else if(filterTsubo==="50坪〜"&&t<50)return false;
+    }
     if(filterFeatures.length>0&&!filterFeatures.every(f=>c.features?.includes(f)))return false;
     if(showFavs&&!favorites.has(c._sbId))return false;
     return true;
   });
   function toggleFav(sbId,e){e?.stopPropagation();setFavorites(p=>{const s=new Set(p);s.has(sbId)?s.delete(sbId):s.add(sbId);return s;});}
   function toggleFF(item){setFFeatures(p=>p.includes(item)?p.filter(x=>x!==item):[...p,item]);}
-  function clearFilters(){setFBuildType("");setFStyle("");setFLayout("");setFFloor("");setFBudget("");setFTsuboMin("");setFTsuboMax("");setFFeatures([]);}
-  const hasFilter=filterBuildType||filterStyle||filterLayout||filterFloor||filterBudget||filterTsuboMin||filterTsuboMax||filterFeatures.length>0;
+  function clearFilters(){setFBuildType("");setFStyle("");setFLayout("");setFFloor("");setFBudget("指定なし");setFTsubo("指定なし");setFFeatures([]);}
+  const hasFilter=filterBuildType||filterStyle||filterLayout||filterFloor||filterBudget||filterTsubo||filterFeatures.length>0;
 
   function openNew(){setEditingCase(null);setFormData({...EMPTY_CASE,highlights:["","","",""],rooms:[{name:"LDK",floor:1,area:""}],features:[],images:[],image:"",youtube:"",specs:{...EMPTY_CASE.specs}});setSaveErr("");setView("adminForm");}
   function openEdit(c){setEditingCase(c._sbId);setFormData(JSON.parse(JSON.stringify({...EMPTY_CASE,...c,specs:{...EMPTY_CASE.specs,...(c.specs||{})}})));setSaveErr("");setView("adminForm");}
@@ -450,37 +460,84 @@ export default function App() {
       )}
 
       {view==="gallery"&&!loading&&(
-        <div style={{maxWidth:1280,margin:"0 auto",padding:"28px 32px"}}>
-          <div style={{background:"white",borderRadius:14,padding:"18px 22px",border:"1px solid #e8e2d8",marginBottom:26}}>
-            <div style={{fontSize:10,color:"#a89a8a",letterSpacing:".18em",marginBottom:14}}>条件で絞り込む</div>
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:7}}>建物タイプ</div>
-              <div style={{display:"flex",gap:5}}>{BUILD_TYPE_LIST.map(s=>{const active=filterBuildType===s;return(<button key={s} className="chip" onClick={()=>setFBuildType(active?"":s)} style={{padding:"5px 16px",borderRadius:20,border:`1px solid ${active?"#c9a96e":"#e0d8cc"}`,background:active?"#fff8ee":"white",color:active?"#7a5a2a":"#5a4a3a",fontSize:12,fontWeight:active?700:400}}>{s}</button>);})}</div>
-            </div>
-            <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:14}}>
-              <div><div style={{fontSize:11,color:"#8a7a6a",marginBottom:7}}>スタイル</div><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{STYLE_LIST.map(s=>{const active=filterStyle===s;const csi=STYLES_DEF[s];return(<button key={s} className="chip" onClick={()=>setFStyle(active?"":s)} style={{padding:"5px 13px",borderRadius:20,border:`1px solid ${active?(csi?.accent||"#c9a96e"):"#e0d8cc"}`,background:active?(csi?.light||"#fff8ee"):"white",color:active?(csi?.accent||"#7a5a2a"):"#5a4a3a",fontSize:11,fontWeight:active?700:400}}>{s}</button>);})}</div></div>
-              <div><div style={{fontSize:11,color:"#8a7a6a",marginBottom:7}}>間取り</div><div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{LAYOUT_LIST.map(s=>{const active=filterLayout===s;return(<button key={s} className="chip" onClick={()=>setFLayout(active?"":s)} style={{padding:"5px 13px",borderRadius:20,border:`1px solid ${active?"#c9a96e":"#e0d8cc"}`,background:active?"#fff8ee":"white",color:active?"#7a5a2a":"#5a4a3a",fontSize:11,fontWeight:active?700:400}}>{s}</button>);})}</div></div>
-              <div><div style={{fontSize:11,color:"#8a7a6a",marginBottom:7}}>階数</div><div style={{display:"flex",gap:5}}>{FLOOR_LIST.map(s=>{const active=filterFloor===s;return(<button key={s} className="chip" onClick={()=>setFFloor(active?"":s)} style={{padding:"5px 13px",borderRadius:20,border:`1px solid ${active?"#c9a96e":"#e0d8cc"}`,background:active?"#fff8ee":"white",color:active?"#7a5a2a":"#5a4a3a",fontSize:11,fontWeight:active?700:400}}>{s}</button>);})}</div></div>
-            </div>
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:7}}>坪数</div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <input type="number" value={filterTsuboMin} onChange={e=>setFTsuboMin(e.target.value)} placeholder="下限" style={{width:80,padding:"6px 10px",border:"1px solid #d4cfc5",borderRadius:7,fontSize:12,outline:"none"}}/>
-                <span style={{color:"#a89a8a",fontSize:12}}>坪 〜</span>
-                <input type="number" value={filterTsuboMax} onChange={e=>setFTsuboMax(e.target.value)} placeholder="上限" style={{width:80,padding:"6px 10px",border:"1px solid #d4cfc5",borderRadius:7,fontSize:12,outline:"none"}}/>
-                <span style={{color:"#a89a8a",fontSize:12}}>坪</span>
+        <div style={{maxWidth:1400,margin:"0 auto",padding:"28px 32px",display:"flex",gap:24,alignItems:"flex-start"}}>
+          {/* ── 左サイドバー フィルター ── */}
+          <div style={{width:240,flexShrink:0,background:"white",borderRadius:14,padding:"18px 16px",border:"1px solid #e8e2d8",position:"sticky",top:72,maxHeight:"calc(100vh - 100px)",overflowY:"auto"}}>
+            <div style={{fontSize:10,color:"#a89a8a",letterSpacing:".18em",marginBottom:14,fontWeight:600}}>条件で絞り込む</div>
+
+            {/* 建物タイプ */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:6,fontWeight:600}}>建物タイプ</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {BUILD_TYPE_LIST.map(s=>{const active=filterBuildType===s;return(<button key={s} className="chip" onClick={()=>setFBuildType(active?"":s)} style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${active?"#c9a96e":"#e0d8cc"}`,background:active?"#fff8ee":"white",color:active?"#7a5a2a":"#5a4a3a",fontSize:12,fontWeight:active?700:400,textAlign:"left",cursor:"pointer"}}>{active?"✓ ":""}{s}</button>);})}
               </div>
             </div>
-            <div style={{marginBottom:6}}>
-              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:7}}>予算目安</div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{BUDGET_LIST.map(b=>{const active=filterBudget===b;return(<button key={b} className="chip" onClick={()=>setFBudget(active?"":b)} style={{padding:"5px 13px",borderRadius:20,border:`1px solid ${active?"#c9a96e":"#e0d8cc"}`,background:active?"#fff8ee":"white",color:active?"#7a5a2a":"#5a4a3a",fontSize:11,fontWeight:active?700:400}}>{b}</button>);})}</div>
+
+            <div style={{borderTop:"1px solid #f0ebe0",marginBottom:16}}/>
+
+            {/* スタイル */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:6,fontWeight:600}}>スタイル</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {STYLE_LIST.map(s=>{const active=filterStyle===s;const csi=STYLES_DEF[s];return(<button key={s} className="chip" onClick={()=>setFStyle(active?"":s)} style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${active?(csi?.accent||"#c9a96e"):"#e0d8cc"}`,background:active?(csi?.light||"#fff8ee"):"white",color:active?(csi?.accent||"#7a5a2a"):"#5a4a3a",fontSize:12,fontWeight:active?700:400,textAlign:"left",cursor:"pointer"}}>{active?"✓ ":""}{s}</button>);})}
+              </div>
             </div>
+
+            <div style={{borderTop:"1px solid #f0ebe0",marginBottom:16}}/>
+
+            {/* 間取り */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:6,fontWeight:600}}>間取り</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {LAYOUT_LIST.map(s=>{const active=filterLayout===s;return(<button key={s} className="chip" onClick={()=>setFLayout(active?"":s)} style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${active?"#c9a96e":"#e0d8cc"}`,background:active?"#fff8ee":"white",color:active?"#7a5a2a":"#5a4a3a",fontSize:12,fontWeight:active?700:400,textAlign:"left",cursor:"pointer"}}>{active?"✓ ":""}{s}</button>);})}
+              </div>
+            </div>
+
+            <div style={{borderTop:"1px solid #f0ebe0",marginBottom:16}}/>
+
+            {/* 階数 */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:6,fontWeight:600}}>階数</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {FLOOR_LIST.map(s=>{const active=filterFloor===s;return(<button key={s} className="chip" onClick={()=>setFFloor(active?"":s)} style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${active?"#c9a96e":"#e0d8cc"}`,background:active?"#fff8ee":"white",color:active?"#7a5a2a":"#5a4a3a",fontSize:12,fontWeight:active?700:400,textAlign:"left",cursor:"pointer"}}>{active?"✓ ":""}{s}</button>);})}
+              </div>
+            </div>
+
+            <div style={{borderTop:"1px solid #f0ebe0",marginBottom:16}}/>
+
+            {/* 坪数 */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:6,fontWeight:600}}>坪数</div>
+              <select value={filterTsubo} onChange={e=>setFTsubo(e.target.value)} style={{width:"100%",padding:"8px 10px",border:"1px solid #d4cfc5",borderRadius:7,fontSize:12,background:"white",color:"#3a3028",outline:"none",cursor:"pointer"}}>
+                <option value="">指定なし</option>
+                {TSUBO_LIST.filter(t=>t!=="指定なし").map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+
+            <div style={{borderTop:"1px solid #f0ebe0",marginBottom:16}}/>
+
+            {/* 予算目安 */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:"#8a7a6a",marginBottom:6,fontWeight:600}}>予算目安</div>
+              <select value={filterBudget} onChange={e=>setFBudget(e.target.value)} style={{width:"100%",padding:"8px 10px",border:"1px solid #d4cfc5",borderRadius:7,fontSize:12,background:"white",color:"#3a3028",outline:"none",cursor:"pointer"}}>
+                <option value="">指定なし</option>
+                {BUDGET_LIST.map(b=><option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+
+            <div style={{borderTop:"1px solid #f0ebe0",marginBottom:16}}/>
+
+            {/* こだわり */}
             <FeatureFilter selected={filterFeatures} onChange={toggleFF}/>
-            {hasFilter&&<button onClick={clearFilters} style={{marginTop:14,padding:"5px 14px",border:"1px dashed #c9b89a",borderRadius:20,background:"transparent",color:"#8a7a6a",fontSize:11,cursor:"pointer"}}>✕ 絞り込みをリセット</button>}
+
+            {hasFilter&&<button onClick={clearFilters} style={{marginTop:14,width:"100%",padding:"7px",border:"1px dashed #c9b89a",borderRadius:7,background:"transparent",color:"#8a7a6a",fontSize:11,cursor:"pointer"}}>✕ 絞り込みをリセット</button>}
           </div>
-          <div style={{fontSize:13,color:"#8a7a6a",marginBottom:18}}><span style={{fontWeight:700,color:"#1a1612",fontSize:20}}>{filtered.length}</span> 件の事例</div>
+
+          {/* ── 右側：件数＋カード一覧 ── */}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,color:"#8a7a6a",marginBottom:18}}><span style={{fontWeight:700,color:"#1a1612",fontSize:20}}>{filtered.length}</span> 件の事例</div>
           {filtered.length===0?<div style={{textAlign:"center",padding:"80px 0",color:"#8a7a6a"}}><div style={{fontSize:48,marginBottom:16,opacity:.3}}>🏠</div><div>条件に合う事例が見つかりません</div></div>
-          :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:26}}>
+          :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:22}}>
             {filtered.map((c,idx)=>{
               const csi=STYLES_DEF[c.style]||STYLES_DEF["ナチュラル"]; const isFav=favorites.has(c._sbId);
               return(<div key={c._sbId} className="card" onClick={()=>{setSelected(c);setDetailTab("concept");setDetailImgIdx(0);setView("detail");}} style={{background:"white",borderRadius:14,overflow:"hidden",border:"1px solid #e8e2d8",boxShadow:"0 2px 10px rgba(0,0,0,.05)",animation:`fadeUp .35s ease ${idx*.05}s both`}}>
@@ -505,6 +562,7 @@ export default function App() {
               </div>);
             })}
           </div>}
+          </div>
         </div>
       )}
 
