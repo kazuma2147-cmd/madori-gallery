@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "admin1234";
 const SUPABASE_URL   = import.meta.env.VITE_SUPABASE_URL   || "";
@@ -1230,8 +1230,9 @@ export default function App(){
   const [priceLoaded,setPriceLoaded]=useState(false);
   const [priceFormOpen,setPriceFormOpen]=useState(false);
   const [editingPrice,setEditingPrice]=useState(null);
-  const [loanRate,setLoanRate]=useState(1.5); // 金利%
-  const [loanYears,setLoanYears]=useState(35); // 返済年数
+  const [loanRate,setLoanRate]=useState(1.5);
+  const [loanYears,setLoanYears]=useState(35);
+  const [adminTab,setAdminTab]=useState("cases");
   const [favorites,setFavorites]=useState(new Set());
 
   // PDF プレゼン
@@ -1495,9 +1496,7 @@ export default function App(){
       {view==="admin"&&adminUnlocked&&(
         <div style={{maxWidth:1100,margin:"0 auto",padding:"28px 28px"}}>
           {/* タブ */}
-          {(()=>{
-            const [adminTab,setAdminTab]=React.useState("cases");
-            return(<>
+          <>
             <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:"2px solid #e8e2d8"}}>
               {[{k:"cases",l:"🏠 事例一覧"},{k:"price",l:"💴 金額管理"}].map(t=>(
                 <button key={t.k} onClick={()=>setAdminTab(t.k)} style={{padding:"10px 24px",border:"none",background:"transparent",cursor:"pointer",fontSize:14,fontWeight:adminTab===t.k?700:400,color:adminTab===t.k?"#1a1612":"#8a7a6a",borderBottom:adminTab===t.k?"3px solid #c9a96e":"3px solid transparent",marginBottom:-2}}>
@@ -1530,8 +1529,7 @@ export default function App(){
 
             {/* 金額管理タブ */}
             {adminTab==="price"&&(<PriceAdmin config={config} priceItems={priceItems} setPriceItems={setPriceItems}/>)}
-            </>);
-          })()}
+          </>
         </div>
       )}
 
