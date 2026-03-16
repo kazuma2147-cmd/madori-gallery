@@ -279,19 +279,17 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
 
   // ── 共通HTML部品 ─────────────────────────────────────────
   function hdr() {
-    // P1専用: 写真背景＋濃紺オーバーレイ
-    return `<div style="position:relative;height:68px;overflow:hidden;flex-shrink:0;">
-      ${mainImage?`<img src="${mainImage}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;"/>`:""}
-      <div style="position:absolute;inset:0;background:#ffffff;"></div>
-      <div style="position:relative;height:100%;display:flex;justify-content:space-between;align-items:center;padding:0 44px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:36px;height:36px;background:${V.primary};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;">🏠</div>
-          <p style="font-size:16px;font-weight:700;letter-spacing:.12em;color:white;font-family:${SANS};margin:0;">Tatsuken Archi Design</p>
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 44px;background:#ffffff;border-bottom:2px solid ${V.border};flex-shrink:0;position:relative;z-index:10;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;background:${V.primary};border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:20px;color:white;">🏠</div>
+        <div>
+          <p style="font-size:15px;font-weight:700;letter-spacing:.12em;color:${V.fg};font-family:${SANS};margin:0 0 2px;">Tatsuken Archi Design</p>
+          <p style="font-size:12px;color:${V.muted};font-family:${SANS};margin:0;">Architectural Presentation</p>
         </div>
-        <div style="text-align:right;font-family:${SANS};">
-          <p style="font-size:10px;color:rgba(255,255,255,.6);margin-bottom:2px;">作成日</p>
-          <p style="font-size:14px;font-weight:600;color:white;margin:0;">${today}</p>
-        </div>
+      </div>
+      <div style="text-align:right;font-family:${SANS};">
+        <p style="font-size:10px;color:${V.muted};margin:0 0 2px;">作成日</p>
+        <p style="font-size:14px;font-weight:600;color:${V.fg};margin:0;">${today}</p>
       </div>
     </div>`;
   }
@@ -318,7 +316,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     return `
     ${hdr()}
     <!-- P1: 左テキスト+面積カード / 右2×2写真グリッド -->
-    <div style="flex:1;background:white;display:flex;flex-direction:column;padding:20px 36px;gap:16px;overflow:hidden;">
+    <div style="flex:1;background:white;display:flex;flex-direction:column;padding:20px 36px;gap:16px;overflow:hidden;position:relative;z-index:1;">
       <div style="display:grid;grid-template-columns:45% 55%;gap:20px;flex:1;min-height:0;">
         <!-- 左: テキスト + 面積カード -->
         <div style="display:flex;flex-direction:column;gap:16px;">
@@ -541,7 +539,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   @page{size:A3 landscape;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif;background:white;}
-  .page{width:420mm;height:297mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;background:white;}
+  .page{width:420mm;height:297mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;background:white;position:relative;}
   section{flex-shrink:0;}
   img{display:block;}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}
