@@ -285,7 +285,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
       <div style="position:absolute;inset:0;background:${V.primary}d0;"></div>
       <div style="position:relative;height:100%;display:flex;justify-content:space-between;align-items:center;padding:0 44px;">
         <div style="display:flex;align-items:center;gap:12px;">
-          <div style="width:36px;height:36px;background:white;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;">🏠</div>
+          <div style="width:36px;height:36px;background:${V.primary};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;">🏠</div>
           <p style="font-size:16px;font-weight:700;letter-spacing:.12em;color:white;font-family:${SANS};margin:0;">Tatsuken Archi Design</p>
         </div>
         <div style="text-align:right;font-family:${SANS};">
@@ -566,7 +566,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
       <div style={{position:"absolute",inset:0,background:V.primary+"d0"}}/>
       <div style={{position:"relative",height:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 44px"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <div style={{width:36,height:36,background:"white",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🏠</div>
+          <div style={{width:36,height:36,background:V.primary,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"white"}}>🏠</div>
           <p style={{fontSize:16,fontWeight:700,letterSpacing:".12em",color:"white",margin:0}}>Tatsuken Archi Design</p>
         </div>
         <div style={{textAlign:"right"}}>
