@@ -294,6 +294,17 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     </div>`;
   }
 
+  // ページタイトルヘッダー（P2以降）
+  function pageHdr(title) {
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 52px;background:${V.card};border-bottom:2px solid ${V.border};">
+      <h2 style="font-family:${SERIF};font-size:22px;font-weight:500;color:${V.fg};margin:0;letter-spacing:.02em;">${title}</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:28px;height:28px;background:${V.primary};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;color:white;">🏠</div>
+        <p style="font-size:12px;color:${V.muted};font-family:${SANS};">Tatsuken Archi Design</p>
+      </div>
+    </div>`;
+  }
+
   function secTitle(text) {
     return `<div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;">
       <h3 style="font-family:${SERIF};font-size:22px;font-weight:500;color:${V.fg};white-space:nowrap;">${text}</h3>
@@ -315,7 +326,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
       <div style="display:grid;grid-template-columns:45% 55%;gap:20px;flex:1;min-height:0;">
         <!-- 左: テキスト + 面積カード -->
         <div style="display:flex;flex-direction:column;gap:16px;">
-          <div style="background:${V.secondary};border-radius:6px;padding:32px 36px;flex:1;display:flex;flex-direction:column;justify-content:center;">
+          <div style="background:transparent;border-radius:6px;padding:32px 36px;flex:1;display:flex;flex-direction:column;justify-content:center;">
             <p style="font-size:13px;letter-spacing:.22em;color:${V.primary};text-transform:uppercase;margin-bottom:12px;font-family:${SANS};">${customerName}様邸</p>
             <h2 style="font-family:${SERIF};font-size:38px;font-weight:500;letter-spacing:-.01em;color:${V.fg};line-height:1.3;margin:0 0 18px;">${c.title||""}</h2>
             <p style="font-size:14px;line-height:1.85;color:${V.muted};margin:0 0 24px;font-family:${SANS};white-space:pre-line;">${c.subtitle||""}</p>
@@ -374,7 +385,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   function p2Html() {
     const label1 = c.floors==="平屋"?"平屋":"1階";
     return `
-    ${hdr()}
+    ${pageHdr("間取りプラン")}
     <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 24px;gap:0;overflow:hidden;">
       ${floorCard(subImages[0],label1,f1rooms)}
     </div>`;
@@ -383,7 +394,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   // ── P2b: 2F間取り（2階建てのみ追加） ─────────────────────
   function p2bHtml() {
     return `
-    ${hdr()}
+    ${pageHdr("間取りプラン（2階）")}
     <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 24px;gap:0;overflow:hidden;">
       ${floorCard(subImages[1],"2階",f2rooms)}
     </div>`;
@@ -429,15 +440,15 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
       ].filter(Boolean)},
     ];
     const specCards = specCats.map(cat=>`
-      <div style="border:1px solid ${V.border};border-radius:4px;background:${V.card};padding:20px 18px;">
+      <div style="border:1px solid ${V.border};border-radius:6px;background:${V.card};padding:20px 18px;display:flex;flex-direction:column;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-          <div style="width:38px;height:38px;border-radius:4px;background:${V.primary}18;display:flex;align-items:center;justify-content:center;font-size:18px;">${cat.icon}</div>
-          <h4 style="font-size:14px;font-weight:500;color:${V.fg};font-family:${SANS};">${cat.label}</h4>
+          <div style="width:40px;height:40px;border-radius:5px;background:${V.primary}18;display:flex;align-items:center;justify-content:center;font-size:20px;">${cat.icon}</div>
+          <h4 style="font-size:15px;font-weight:600;color:${V.fg};font-family:${SANS};">${cat.label}</h4>
         </div>
-        <ul style="list-style:none;margin:0;padding:0;">
+        <ul style="list-style:none;margin:0;padding:0;flex:1;">
           ${cat.items.length>0
-            ?cat.items.map(it=>`<li style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:${V.muted};padding:5px 0;border-bottom:1px solid ${V.border}20;font-family:${SANS};"><span style="margin-top:6px;width:6px;height:6px;min-width:6px;border-radius:50%;background:${V.primary}60;"></span>${it}</li>`).join('')
-            :`<li style="font-size:12px;color:#b0bec5;font-family:${SANS};">未設定</li>`}
+            ?cat.items.map(it=>`<li style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:${V.muted};padding:7px 0;border-bottom:1px solid ${V.border}30;font-family:${SANS};"><span style="margin-top:7px;width:6px;height:6px;min-width:6px;border-radius:50%;background:${V.primary}60;"></span>${it}</li>`).join('')
+            :`<li style="font-size:13px;color:#b0bec5;font-family:${SANS};">未設定</li>`}
         </ul>
       </div>`).join('');
 
@@ -445,27 +456,27 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     const hlHtml = highlights.map((h,i)=>`
       <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:${V.card};border-radius:4px;border:1px solid ${V.border};">
         <div style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${V.primary};color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:${SANS};">${i+1}</div>
-        <p style="font-size:14px;line-height:1.7;color:${V.fg};margin:0;padding-top:3px;font-family:${SANS};">${h}</p>
+        <p style="font-size:15px;line-height:1.75;color:${V.fg};margin:0;padding-top:3px;font-family:${SANS};">${h}</p>
       </div>`).join('');
     return `
-    ${hdr()}
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 36px 24px;gap:16px;overflow:hidden;">
+    ${pageHdr("コンセプト・デザインハイライト・標準仕様")}
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:22px 36px 22px;gap:0;overflow:hidden;">
       ${c.concept?`
-      <div style="background:${V.secondary};border-radius:6px;padding:20px 26px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-          <div style="width:3px;height:20px;background:${V.primary};border-radius:2px;"></div>
-          <span style="font-family:${SERIF};font-size:13px;font-weight:500;color:${V.primary};letter-spacing:.12em;">CONCEPT</span>
+      <div style="background:${V.secondary};border-radius:6px;padding:22px 28px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div style="width:3px;height:22px;background:${V.primary};border-radius:2px;"></div>
+          <span style="font-family:${SERIF};font-size:15px;font-weight:500;color:${V.primary};letter-spacing:.12em;">CONCEPT</span>
         </div>
-        <p style="font-size:14px;line-height:1.9;color:${V.fg};margin:0;font-family:${SANS};">${c.concept}</p>
+        <p style="font-size:15px;line-height:2.0;color:${V.fg};margin:0;font-family:${SANS};">${c.concept}</p>
       </div>`:""}
       ${highlights.length>0?`
-      <div>
+      <div style="margin-bottom:14px;">
         ${secTitle("デザインハイライト")}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${hlHtml}</div>
       </div>`:""}
-      <div style="flex:1;">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
         ${secTitle("標準設備・仕様")}
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;">${specCards}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;flex:1;">${specCards}</div>
       </div>
     </div>`;
   }
@@ -492,7 +503,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
         <p style="font-size:16px;font-weight:500;color:${V.fg};font-family:${SANS};">${r.val>0?fmtYen(r.val):"—"}</p>
       </div>`).join('');
     return `
-    ${hdr()}
+    ${pageHdr("資金計画")}
     <section style="background:${V.card};padding:40px 40px 28px;">
       ${secTitle("お見積り概算")}
       <div style="border:1px solid ${V.border};border-radius:4px;overflow:hidden;background:${V.bg};">
