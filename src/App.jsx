@@ -318,7 +318,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     return `
     ${hdr()}
     <!-- P1: 左テキスト+面積カード / 右2×2写真グリッド -->
-    <div style="flex:1;background:transparent;display:flex;flex-direction:column;padding:24px 36px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:white;display:flex;flex-direction:column;padding:20px 36px;gap:16px;overflow:hidden;">
       <div style="display:grid;grid-template-columns:45% 55%;gap:20px;flex:1;min-height:0;">
         <!-- 左: テキスト + 面積カード -->
         <div style="display:flex;flex-direction:column;gap:16px;">
@@ -587,9 +587,9 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
 
   const previews = [
     {label:"P1 表紙",node:(
-      <div style={{width:"420mm",height:"297mm",background:V.card,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{width:"420mm",height:"297mm",background:"white",display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <HDR/>
-        <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"28px 40px",gap:20,overflow:"hidden"}}>
+        <div style={{flex:1,background:"white",display:"flex",flexDirection:"column",padding:"20px 36px",gap:16,overflow:"hidden"}}>
           {/* ヒーロー: secondaryブロックの上下が画像に合う */}
           <div style={{display:"grid",gridTemplateColumns:"50% 50%",background:V.secondary,borderRadius:6,overflow:"hidden",flex:1,minHeight:0}}>
             <div style={{display:"flex",flexDirection:"column",justifyContent:"center",padding:"44px 44px 40px 44px"}}>
