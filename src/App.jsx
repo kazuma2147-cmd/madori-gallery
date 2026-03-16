@@ -1174,6 +1174,7 @@ export default function App(){
         const f1=(c.rooms||[]).filter(r=>r.floor===1);
         const f2=(c.rooms||[]).filter(r=>r.floor===2);
         const allImages=[c.image,...(c.images||[])].filter(Boolean);
+        const subImages=(c.images||[]).filter(Boolean);
         const sp=c.specs||{};
         let ytId=null;if(c.youtube){const m=c.youtube.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);if(m)ytId=m[1];}
 
