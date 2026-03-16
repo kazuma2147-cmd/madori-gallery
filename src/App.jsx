@@ -533,7 +533,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
 
   // ── 新ウィンドウ印刷 ──────────────────────────────────────
   function doPrint() {
-    const isTwoStory = c.floors==="2階建て";
+    const isTwoStory = c.floors==="2階建て" || f2rooms.length>0;
     const pages = [p1Html(),p2Html(),...(isTwoStory?[p2bHtml()]:[]),p3Html(),p4Html()];
     const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"/>
 <style>
@@ -1047,44 +1047,45 @@ export default function App(){
               {(formData.highlights||[]).length<5&&<button onClick={()=>setFormData(f=>({...f,highlights:[...f.highlights,""]}))} style={{padding:"6px 12px",border:"1px dashed #c9b89a",borderRadius:6,background:"transparent",cursor:"pointer",fontSize:12,color:"#6a5a4a"}}>＋ 追加</button>}
             </Sec>
 
-            {/* 部屋構成 - ドラッグ＆ドロップ */}
-            <Sec title="🛋 部屋構成（ドラッグで並び替え可能）">
-              <div style={{marginBottom:8,fontSize:11,color:"#a89a8a"}}>☰ をドラッグして並び替えできます</div>
-              {(formData.rooms||[]).map((r,i)=>(
-                <div key={i} draggable onDragStart={()=>onDragStart(i)} onDragOver={e=>onDragOver(e,i)} onDragEnd={onDragEnd}
-                  style={{display:"grid",gridTemplateColumns:"auto 2.5fr 1fr 1.5fr auto",gap:7,marginBottom:7,alignItems:"end",opacity:dragIdx===i?0.5:1,background:dragIdx===i?"#f5f0e8":"transparent",borderRadius:6,padding:"2px 0"}}>
-                  <div style={{cursor:"grab",color:"#a89a8a",fontSize:18,paddingBottom:6,userSelect:"none"}}>☰</div>
-                  <div>
-                    {i===0&&<Lbl>部屋名</Lbl>}
-                    <select value={ROOM_NAMES.includes(r.name)?r.name:"__custom__"} onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],name:e.target.value==="__custom__"?"":e.target.value};setFormData(f=>({...f,rooms:rs}));}} style={sel}>
-                      {ROOM_NAMES.map(n=><option key={n} value={n}>{n}</option>)}
-                      <option value="__custom__">その他</option>
-                    </select>
-                    {(!ROOM_NAMES.includes(r.name)||r.name==="")&&<input value={r.name} onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],name:e.target.value};setFormData(f=>({...f,rooms:rs}));}} style={{...inp,marginTop:4}} placeholder="部屋名を入力"/>}
-                  </div>
-                  <div>
-                    {i===0&&<Lbl>階</Lbl>}
-                    <select value={r.floor} onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],floor:Number(e.target.value)};setFormData(f=>({...f,rooms:rs}));}} style={sel}>
-                      <option value={1}>1階</option><option value={2}>2階</option><option value={3}>3階</option>
-                    </select>
-                  </div>
-                  <div>
-                    {i===0&&<Lbl>帖数</Lbl>}
-                    <div style={{display:"flex",alignItems:"center",gap:4}}>
-                      <input
-                        type="number" min="0.5" max="50" step="0.5"
-                        value={r.jyou||""}
-                        onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],jyou:e.target.value};setFormData(f=>({...f,rooms:rs}));}}
-                        placeholder="帖"
-                        style={{...inp,width:72,textAlign:"center"}}
-                      />
-                      <span style={{fontSize:12,color:"#8a7a6a",flexShrink:0}}>帖</span>
+            {/* 部屋構成 - 1F/2F分割表示 */}
+            <Sec title="🛋 部屋構成">
+              {[{floorNum:1,label:"1階",addLabel:"＋ 1階に部屋を追加"},{...(formData.floors!=="平屋"?{floorNum:2,label:"2階",addLabel:"＋ 2階に部屋を追加"}:{floorNum:null})}].filter(f=>f.floorNum).map(({floorNum,label,addLabel})=>{
+                const floorRooms=(formData.rooms||[]).filter(r=>r.floor===floorNum);
+                const floorBg=floorNum===1?"#f0f4ff":"#fff8f0";
+                const floorAccent=floorNum===1?"#3a6aaa":"#aa6a3a";
+                return(
+                  <div key={floorNum} style={{marginBottom:16,border:`1px solid ${floorAccent}30`,borderRadius:8,overflow:"hidden"}}>
+                    <div style={{background:floorNum===1?"#1e3a5f":"#5a3a1e",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{color:"white",fontSize:13,fontWeight:700}}>{label}</span>
+                      <span style={{color:"rgba(255,255,255,.6)",fontSize:11}}>{floorRooms.length}部屋</span>
+                    </div>
+                    <div style={{padding:"10px 12px",background:floorBg}}>
+                      {floorRooms.length===0&&<div style={{fontSize:12,color:"#a89a8a",padding:"6px 0"}}>部屋が未登録です</div>}
+                      {(formData.rooms||[]).map((r,i)=>r.floor!==floorNum?null:(
+                        <div key={i} draggable onDragStart={()=>onDragStart(i)} onDragOver={e=>onDragOver(e,i)} onDragEnd={onDragEnd}
+                          style={{display:"grid",gridTemplateColumns:"auto 2fr 1.5fr auto",gap:7,marginBottom:7,alignItems:"center",opacity:dragIdx===i?0.5:1,background:dragIdx===i?"#f5f0e8":"white",borderRadius:6,padding:"8px 10px",boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
+                          <div style={{cursor:"grab",color:"#a89a8a",fontSize:16,userSelect:"none"}}>☰</div>
+                          <div>
+                            <select value={ROOM_NAMES.includes(r.name)?r.name:"__custom__"} onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],name:e.target.value==="__custom__"?"":e.target.value};setFormData(f=>({...f,rooms:rs}));}} style={{...sel,fontSize:13}}>
+                              {ROOM_NAMES.map(n=><option key={n} value={n}>{n}</option>)}
+                              <option value="__custom__">その他</option>
+                            </select>
+                            {(!ROOM_NAMES.includes(r.name)||r.name==="")&&<input value={r.name} onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],name:e.target.value};setFormData(f=>({...f,rooms:rs}));}} style={{...inp,marginTop:4,fontSize:12}} placeholder="部屋名を入力"/>}
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:4}}>
+                            <input type="number" min="0.5" max="50" step="0.5" value={r.jyou||""}
+                              onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],jyou:e.target.value};setFormData(f=>({...f,rooms:rs}));}}
+                              placeholder="帖" style={{...inp,width:60,textAlign:"center",fontSize:13}}/>
+                            <span style={{fontSize:12,color:"#8a7a6a"}}>帖</span>
+                          </div>
+                          <button onClick={()=>setFormData(f=>({...f,rooms:f.rooms.filter((_,j)=>j!==i)}))} style={{padding:"6px 8px",border:"1px solid #f5c6cb",borderRadius:5,background:"#fff5f5",color:"#c0392b",cursor:"pointer"}}>×</button>
+                        </div>
+                      ))}
+                      <button onClick={()=>setFormData(f=>({...f,rooms:[...f.rooms,{name:"LDK",floor:floorNum,jyou:""}]}))} style={{padding:"5px 12px",border:"1px dashed #c9b89a",borderRadius:6,background:"transparent",cursor:"pointer",fontSize:12,color:"#6a5a4a",marginTop:2}}>{addLabel}</button>
                     </div>
                   </div>
-                  <button onClick={()=>setFormData(f=>({...f,rooms:f.rooms.filter((_,j)=>j!==i)}))} style={{padding:"8px 9px",border:"1px solid #f5c6cb",borderRadius:5,background:"#fff5f5",color:"#c0392b",cursor:"pointer",alignSelf:"flex-end"}}>×</button>
-                </div>
-              ))}
-              <button onClick={()=>setFormData(f=>({...f,rooms:[...f.rooms,{name:"LDK",floor:1,jyou:""}]}))} style={{padding:"6px 13px",border:"1px dashed #c9b89a",borderRadius:6,background:"transparent",cursor:"pointer",fontSize:12,color:"#6a5a4a"}}>＋ 部屋を追加</button>
+                );
+              })}
             </Sec>
 
             {/* こだわり */}
