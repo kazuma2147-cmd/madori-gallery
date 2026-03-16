@@ -358,18 +358,13 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
       </div>`).join('');
     return `<div style="background:${C.bg};width:420mm;height:297mm;display:flex;flex-direction:column;font-family:${FONT};overflow:hidden;">
       ${headerHtml()}
-      <div style="padding:28px 40px 0;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
-        <h2 style="font-size:24px;font-weight:800;color:${C.text};margin:0 0 20px;">間取りプラン</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div style="padding:28px 40px;flex:1;display:flex;flex-direction:column;justify-content:center;gap:20px;">
+        <h2 style="font-size:24px;font-weight:800;color:${C.text};margin:0;">間取りプラン</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
           ${floorCard(img1,label1,f1rooms)}
           ${floorCard(img2,label2,f2rooms)}
         </div>
-        ${hlHtml?`<div style="background:white;border-radius:10px;padding:18px 22px;border:1px solid ${C.border};">
-          <div style="font-size:12px;font-weight:700;color:${C.blue};margin-bottom:8px;letter-spacing:.08em;">DESIGN HIGHLIGHTS</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">${hlHtml}</div>
-        </div>`:''}
       </div>
-      <div style="height:20px;"></div>
     </div>`;
   }
 
@@ -419,16 +414,25 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
             :`<li style="font-size:12px;color:#a0b0c0;">未設定</li>`}
         </ul>
       </div>`).join('');
+    const hlHtml2=(c.highlights||[]).filter(Boolean).map((h,i)=>`
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid #eef2f6;">
+        <div style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${C.blue};color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">${i+1}</div>
+        <div style="font-size:13px;line-height:1.5;color:${C.text};padding-top:2px;">${h}</div>
+      </div>`).join('');
     return `<div style="background:${C.bg};width:420mm;height:297mm;display:flex;flex-direction:column;font-family:${FONT};overflow:hidden;">
       ${headerHtml()}
-      <div style="padding:24px 40px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;gap:20px;">
+      <div style="padding:22px 40px;flex:1;display:flex;flex-direction:column;gap:18px;">
         ${iImgs.length>0?`<div>
-          <h3 style="font-size:18px;font-weight:800;color:${C.text};margin:0 0 14px;">インテリアイメージ</h3>
-          <div style="display:grid;grid-template-columns:repeat(${Math.min(iImgs.length,4)},1fr);gap:14px;">${imgCards}</div>
+          <h3 style="font-size:17px;font-weight:800;color:${C.text};margin:0 0 12px;">インテリアイメージ</h3>
+          <div style="display:grid;grid-template-columns:repeat(${Math.min(iImgs.length,4)},1fr);gap:12px;">${imgCards}</div>
+        </div>`:''}
+        ${hlHtml2?`<div style="background:white;border-radius:10px;padding:16px 20px;border:1px solid ${C.border};">
+          <div style="font-size:12px;font-weight:700;color:${C.blue};margin-bottom:10px;letter-spacing:.1em;">DESIGN HIGHLIGHTS</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 28px;">${hlHtml2}</div>
         </div>`:''}
         <div style="flex:1;">
-          <h3 style="font-size:18px;font-weight:800;color:${C.text};margin:0 0 14px;">標準設備・仕様</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;height:calc(100% - 40px);">${specCards}</div>
+          <h3 style="font-size:17px;font-weight:800;color:${C.text};margin:0 0 12px;">標準設備・仕様</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;">${specCards}</div>
         </div>
       </div>
     </div>`;
@@ -559,7 +563,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
     {label:"P2 間取り", node:(
       <div style={{...PAGE,background:C.bg,display:"flex",flexDirection:"column"}}>
         <HDR/>
-        <div style={{padding:"28px 40px 0",flex:1,display:"flex",flexDirection:"column",gap:18}}>
+        <div style={{padding:"28px 40px",flex:1,display:"flex",flexDirection:"column",justifyContent:"center",gap:20}}>
           <h2 style={{fontSize:24,fontWeight:800,color:C.text,margin:0}}>間取りプラン</h2>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
             {[{img:subImages[0],label:c.floors==="平屋"?"平屋":"1階",rooms:f1rooms},{img:subImages[1],label:"2階",rooms:f2rooms}].map(({img,label,rooms},i)=>(
@@ -574,21 +578,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
               </div>
             ))}
           </div>
-          {(c.highlights||[]).filter(Boolean).length>0&&(
-            <div style={{background:"white",borderRadius:10,padding:"16px 20px",border:`1px solid ${C.border}`}}>
-              <div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:10,letterSpacing:".08em"}}>DESIGN HIGHLIGHTS</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 24px"}}>
-                {(c.highlights||[]).filter(Boolean).map((h,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"7px 0",borderBottom:`1px solid #eef2f6`}}>
-                    <div style={{width:22,height:22,minWidth:22,borderRadius:"50%",background:C.blue,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{i+1}</div>
-                    <div style={{fontSize:13,lineHeight:1.5,color:C.text,paddingTop:3}}>{h}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-        <div style={{height:16}}/>
       </div>
     )},
     {label:"P3 設備仕様", node:(
@@ -608,9 +598,22 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
               </div>
             </div>
           )}
+          {(c.highlights||[]).filter(Boolean).length>0&&(
+            <div style={{background:"white",borderRadius:10,padding:"14px 18px",border:`1px solid ${C.border}`}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:8,letterSpacing:".1em"}}>DESIGN HIGHLIGHTS</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 28px"}}>
+                {(c.highlights||[]).filter(Boolean).map((h,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"6px 0",borderBottom:"1px solid #eef2f6"}}>
+                    <div style={{width:22,height:22,minWidth:22,borderRadius:"50%",background:C.blue,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{i+1}</div>
+                    <div style={{fontSize:13,lineHeight:1.5,color:C.text,paddingTop:2}}>{h}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div style={{flex:1}}>
-            <h3 style={{fontSize:18,fontWeight:800,color:C.text,margin:"0 0 12px"}}>標準設備・仕様</h3>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:14,height:"calc(100% - 40px)"}}>
+            <h3 style={{fontSize:17,fontWeight:800,color:C.text,margin:"0 0 12px"}}>標準設備・仕様</h3>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12}}>
               {[{icon:"🌡",label:"断熱・気密"},{icon:"🏗",label:"構造・耐震"},{icon:"🔧",label:"設備・内装"},{icon:"⭐",label:"省エネ・スマート"}].map((cat,i)=>(
                 <div key={i} style={{background:"white",borderRadius:9,padding:"14px 14px",border:`1px solid ${C.border}`}}>
                   <div style={{fontSize:13,fontWeight:700,color:C.navy,marginBottom:8,paddingBottom:7,borderBottom:`2px solid ${C.border}`}}>{cat.icon} {cat.label}</div>
