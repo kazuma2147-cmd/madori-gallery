@@ -308,68 +308,61 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
                      : totalArea ? "（"+(Number(totalArea)/3.306).toFixed(2)+"坪）":"";
     return `
     ${hdr()}
-    <!-- 全体を白背景・余白あり構成 -->
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:28px 40px 28px;gap:22px;overflow:hidden;">
-      <!-- ヒーローエリア: 左テキスト + 右写真（secondaryで囲む） -->
-      <div style="display:grid;grid-template-columns:50% 50%;background:${V.secondary};border-radius:6px;overflow:hidden;">
-        <!-- 左: テキスト -->
-        <div style="display:flex;flex-direction:column;justify-content:center;padding:44px 44px 40px 44px;background:${V.secondary};">
-          <p style="font-size:15px;letter-spacing:.22em;color:${V.primary};text-transform:uppercase;margin-bottom:14px;font-family:${SANS};">${customerName}様邸</p>
-          <h2 style="font-family:${SERIF};font-size:44px;font-weight:500;letter-spacing:-.01em;color:${V.fg};line-height:1.3;margin:0 0 22px;">${c.title||""}</h2>
-          <p style="font-size:16px;line-height:1.85;color:${V.muted};margin:0 0 32px;font-family:${SANS};white-space:pre-line;">${c.subtitle||""}</p>
-          <div style="display:flex;align-items:center;gap:16px;">
-            <div style="width:52px;height:1px;background:${V.primary};"></div>
-            <span style="font-size:12px;letter-spacing:.28em;color:${V.muted};text-transform:uppercase;font-family:${SANS};">Design Concept</span>
+    <!-- P1: 左テキスト+面積カード / 右2×2写真グリッド -->
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:24px 36px;gap:0;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:45% 55%;gap:20px;flex:1;min-height:0;">
+        <!-- 左: テキスト + 面積カード -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div style="background:${V.secondary};border-radius:6px;padding:32px 36px;flex:1;display:flex;flex-direction:column;justify-content:center;">
+            <p style="font-size:13px;letter-spacing:.22em;color:${V.primary};text-transform:uppercase;margin-bottom:12px;font-family:${SANS};">${customerName}様邸</p>
+            <h2 style="font-family:${SERIF};font-size:38px;font-weight:500;letter-spacing:-.01em;color:${V.fg};line-height:1.3;margin:0 0 18px;">${c.title||""}</h2>
+            <p style="font-size:14px;line-height:1.85;color:${V.muted};margin:0 0 24px;font-family:${SANS};white-space:pre-line;">${c.subtitle||""}</p>
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div style="width:44px;height:1px;background:${V.primary};"></div>
+              <span style="font-size:11px;letter-spacing:.28em;color:${V.muted};text-transform:uppercase;font-family:${SANS};">Design Concept</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="background:${V.secondary};border-radius:6px;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+              <span style="color:${V.primary};font-size:20px;">📐</span>
+              <div>
+                <p style="font-size:10px;letter-spacing:.12em;color:${V.muted};font-family:${SANS};margin-bottom:3px;">敷地面積</p>
+                <p style="font-size:16px;font-weight:600;color:${V.fg};font-family:${SANS};">${landArea?landArea+"m²":"—"} <span style="font-size:12px;font-weight:400;color:${V.muted};">${tsuboLand}</span></p>
+              </div>
+            </div>
+            <div style="background:${V.secondary};border-radius:6px;padding:16px 20px;display:flex;align-items:center;gap:12px;">
+              <span style="color:${V.primary};font-size:20px;">🏠</span>
+              <div>
+                <p style="font-size:10px;letter-spacing:.12em;color:${V.muted};font-family:${SANS};margin-bottom:3px;">延床面積</p>
+                <p style="font-size:16px;font-weight:600;color:${V.fg};font-family:${SANS};">${totalArea?totalArea+"m²":"—"} <span style="font-size:12px;font-weight:400;color:${V.muted};">${tsuboTotal}</span></p>
+              </div>
+            </div>
           </div>
         </div>
-        <!-- 右: 写真（secondaryに収める・上下に合わせる） -->
-        <div style="overflow:hidden;display:flex;align-items:stretch;">
-          ${mainImage
-            ?`<img src="${mainImage}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
-            :`<div style="width:100%;background:#c5d5e5;display:flex;align-items:center;justify-content:center;font-size:80px;">🏠</div>`}
+        <!-- 右: 写真2×2グリッド（最大4枚） -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;min-height:0;">
+          ${[mainImage,...subImages.slice(0,3)].filter(Boolean).slice(0,4).map(img=>`
+            <div style="border-radius:5px;overflow:hidden;background:#c5d5e5;">
+              <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>
+            </div>`).join('')}
         </div>
       </div>
-      <!-- 下: 面積カード（個別に同色background・余白あり） -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div style="background:${V.secondary};border-radius:6px;padding:22px 32px;display:flex;align-items:center;gap:18px;">
-          <span style="color:${V.primary};font-size:26px;">📐</span>
-          <div>
-            <p style="font-size:12px;letter-spacing:.14em;color:${V.muted};font-family:${SANS};margin-bottom:5px;">敷地面積</p>
-            <p style="font-size:22px;font-weight:600;color:${V.fg};font-family:${SANS};">${landArea?landArea+"m²":"—"} <span style="font-size:15px;font-weight:400;color:${V.muted};">${tsuboLand}</span></p>
-          </div>
-        </div>
-        <div style="background:${V.secondary};border-radius:6px;padding:22px 32px;display:flex;align-items:center;gap:18px;">
-          <span style="color:${V.primary};font-size:26px;">🏠</span>
-          <div>
-            <p style="font-size:12px;letter-spacing:.14em;color:${V.muted};font-family:${SANS};margin-bottom:5px;">延床面積</p>
-            <p style="font-size:22px;font-weight:600;color:${V.fg};font-family:${SANS};">${totalArea?totalArea+"m²":"—"} <span style="font-size:15px;font-weight:400;color:${V.muted};">${tsuboTotal}</span></p>
-          </div>
-        </div>
-      </div>
-      <!-- パース4枚 -->
-      ${subImages.slice(2,6).length>0?`
-      <div style="display:grid;grid-template-columns:repeat(${Math.min(subImages.slice(2,6).length,4)},1fr);gap:10px;margin-top:16px;">
-        ${subImages.slice(2,6).map(img=>`
-          <div style="border-radius:5px;overflow:hidden;aspect-ratio:4/3;background:#c5d5e5;">
-            <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>
-          </div>`).join('')}
-      </div>`:''}
     </div>`;
   }
 
   // ── 間取りカード共通 ─────────────────────────────────────
   function floorCard(img,label,rooms) {
     const jyouTotal = rooms.reduce((s,r)=>s+(parseFloat(r.jyou)||0),0);
-    const tags = rooms.map(r=>`<span style="background:${V.secondary};color:${V.fg};padding:5px 12px;border-radius:3px;font-size:13px;display:inline-block;margin:0 6px 6px 0;font-family:${SANS};">${r.name}${r.jyou?"（"+r.jyou+"帖）":""}</span>`).join('');
-    return `<div style="background:${V.secondary};border-radius:6px;overflow:hidden;flex:1;display:flex;flex-direction:column;">
+    const tags = rooms.map(r=>`<span style="background:${V.card};color:${V.fg};padding:4px 10px;border-radius:3px;font-size:12px;display:inline-block;margin:0 5px 5px 0;font-family:${SANS};">${r.name}${r.jyou?"（"+r.jyou+"帖）":""}</span>`).join('');
+    return `<div style="background:${V.secondary};border-radius:6px;overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;">
       <div style="flex:1;overflow:hidden;background:#c5d5e5;position:relative;min-height:0;">
         ${img?`<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;">🏠</div>`}
-        <div style="position:absolute;bottom:14px;left:14px;background:${V.primary};padding:6px 18px;border-radius:3px;">
-          <span style="color:white;font-size:14px;font-weight:600;font-family:${SANS};">${label}</span>
+        <div style="position:absolute;bottom:12px;left:12px;background:${V.primary};padding:5px 14px;border-radius:3px;">
+          <span style="color:white;font-size:13px;font-weight:600;font-family:${SANS};">${label}</span>
         </div>
       </div>
-      <div style="padding:20px 24px;background:${V.secondary};">
-        ${jyouTotal>0?`<p style="font-size:13px;color:${V.muted};font-family:${SANS};margin-bottom:10px;">床面積: <span style="font-weight:600;color:${V.fg};font-size:15px;">${jyouTotal.toFixed(1)}㎡</span></p>`:""}
+      <div style="padding:14px 18px;background:${V.secondary};flex-shrink:0;">
+        ${jyouTotal>0?`<p style="font-size:12px;color:${V.muted};font-family:${SANS};margin-bottom:8px;">床面積: <span style="font-weight:600;color:${V.fg};font-size:14px;">${jyouTotal.toFixed(1)}㎡</span></p>`:""}
         <div style="display:flex;flex-wrap:wrap;">${tags}</div>
       </div>
     </div>`;
@@ -380,7 +373,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     const label1 = c.floors==="平屋"?"平屋":"1階";
     return `
     ${hdr()}
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:28px 40px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 24px;gap:0;overflow:hidden;">
       ${floorCard(subImages[0],label1,f1rooms)}
     </div>`;
   }
@@ -389,7 +382,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   function p2bHtml() {
     return `
     ${hdr()}
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:28px 40px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 24px;gap:0;overflow:hidden;">
       ${floorCard(subImages[1],"2階",f2rooms)}
     </div>`;
   }
@@ -454,15 +447,25 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
       </div>`).join('');
     return `
     ${hdr()}
-    ${highlights.length>0?`
-    <section style="background:${V.secondary};padding:28px 40px 24px;">
-      ${secTitle("デザインハイライト")}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${hlHtml}</div>
-    </section>`:''}
-    <section style="background:${V.bg};padding:28px 40px 32px;flex:1;">
-      ${secTitle("標準設備・仕様")}
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;">${specCards}</div>
-    </section>`;
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 36px 24px;gap:16px;overflow:hidden;">
+      ${c.concept?`
+      <div style="background:${V.secondary};border-radius:6px;padding:20px 26px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <div style="width:3px;height:20px;background:${V.primary};border-radius:2px;"></div>
+          <span style="font-family:${SERIF};font-size:13px;font-weight:500;color:${V.primary};letter-spacing:.12em;">CONCEPT</span>
+        </div>
+        <p style="font-size:14px;line-height:1.9;color:${V.fg};margin:0;font-family:${SANS};">${c.concept}</p>
+      </div>`:""}
+      ${highlights.length>0?`
+      <div>
+        ${secTitle("デザインハイライト")}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${hlHtml}</div>
+      </div>`:""}
+      <div style="flex:1;">
+        ${secTitle("標準設備・仕様")}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;">${specCards}</div>
+      </div>
+    </div>`;
   }
 
   // ── P4: 見積り + フッター ─────────────────────────────────
