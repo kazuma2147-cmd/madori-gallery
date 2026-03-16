@@ -282,7 +282,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     // P1専用: 写真背景＋濃紺オーバーレイ
     return `<div style="position:relative;height:68px;overflow:hidden;flex-shrink:0;">
       ${mainImage?`<img src="${mainImage}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;"/>`:""}
-      <div style="position:absolute;inset:0;background:${V.primary}d0;"></div>
+      <div style="position:absolute;inset:0;background:#ffffff;"></div>
       <div style="position:relative;height:100%;display:flex;justify-content:space-between;align-items:center;padding:0 44px;">
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="width:36px;height:36px;background:${V.primary};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;color:white;">🏠</div>
@@ -563,7 +563,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
   const HDR = ()=>(
     <div style={{position:"relative",height:68,overflow:"hidden",flexShrink:0}}>
       {mainImage&&<img src={mainImage} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>}
-      <div style={{position:"absolute",inset:0,background:V.primary+"d0"}}/>
+      <div style={{position:"absolute",inset:0,background:"#ffffff"}}/>
       <div style={{position:"relative",height:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 44px"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <div style={{width:36,height:36,background:V.primary,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:"white"}}>🏠</div>
