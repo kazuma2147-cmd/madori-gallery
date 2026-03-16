@@ -539,8 +539,8 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
 <style>
   @page{size:A3 landscape;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif;background:${V.bg};}
-  .page{width:420mm;height:297mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;}
+  body{font-family:'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif;background:white;}
+  .page{width:420mm;height:297mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;background:white;}
   section{flex-shrink:0;}
   img{display:block;}
 </style></head><body>
