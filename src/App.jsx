@@ -1273,6 +1273,23 @@ export default function App(){
                 </div>
               </section>
 
+              {/* ── 写真ギャラリー ── */}
+              {allImages.length>1&&(
+                <section style={{background:V.secondary,padding:"40px 32px"}}>
+                  <SecTitle text="フォトギャラリー"/>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
+                    {allImages.map((img,i)=>(
+                      <div key={i} onClick={()=>setLightbox({images:allImages,idx:i})} style={{borderRadius:4,overflow:"hidden",aspectRatio:"4/3",cursor:"pointer",background:"#c5d5e5",transition:"opacity .15s"}}
+                        onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                        <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      </div>
+                    ))}
+                  </div>
+
+                </section>
+              )}
+
+
               {/* ── ハイライト ── */}
               {(c.highlights||[]).filter(Boolean).length>0&&(
                 <section style={{background:V.bg,padding:"40px 32px"}}>
@@ -1300,45 +1317,53 @@ export default function App(){
                 </section>
               )}
 
-              {/* ── 間取りプラン ── */}
+              {/* ── 間取りプラン: 登録した全画像を表示 ── */}
               <section style={{background:V.bg,padding:"40px 32px"}}>
                 <SecTitle text="間取りプラン"/>
-                <div style={{display:"grid",gridTemplateColumns:f2.length>0?"1fr 1fr":"1fr",gap:24}}>
-                  {[{label:c.floors==="平屋"?"平屋":"1階",rooms:f1,img:allImages[1]},{...(f2.length>0?{label:"2階",rooms:f2,img:allImages[2]}:{label:"",rooms:[],img:""})}].filter(fl=>fl.label).map((fl,i)=>(
-                    <div key={i} style={{overflow:"hidden",borderRadius:4,border:`1px solid ${V.border}`,background:V.card,display:"flex",flexDirection:"column"}}>
-                      <div style={{position:"relative",aspectRatio:"16/10",overflow:"hidden",background:"#c5d5e5"}}>
-                        {fl.img?<img src={fl.img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><HouseIllust style={c.style}/></div>}
-                        <div style={{position:"absolute",bottom:14,left:14,background:V.primary,padding:"5px 14px",borderRadius:2}}>
-                          <span style={{color:"white",fontSize:13,fontWeight:500}}>{fl.label}</span>
+                {subImages.length>0?(
+                  <div style={{display:"grid",gridTemplateColumns:subImages.length===1?"1fr":"1fr 1fr",gap:20}}>
+                    {subImages.map((img,i)=>{
+                      const floorLabel=i===0?(c.floors==="平屋"?"平屋":"1階"):i===1&&f2.length>0?"2階":"";
+                      const roomsForFloor=i===0?f1:i===1?f2:[];
+                      return(
+                        <div key={i} style={{overflow:"hidden",borderRadius:4,border:`1px solid ${V.border}`,background:V.card,display:"flex",flexDirection:"column"}}>
+                          <div style={{position:"relative",overflow:"hidden",background:"#c5d5e5"}}>
+                            <img src={img} style={{width:"100%",height:"auto",display:"block",objectFit:"cover"}}/>
+                            {floorLabel&&<div style={{position:"absolute",bottom:14,left:14,background:V.primary,padding:"5px 14px",borderRadius:2}}>
+                              <span style={{color:"white",fontSize:13,fontWeight:500}}>{floorLabel}</span>
+                            </div>}
+                          </div>
+                          {roomsForFloor.length>0&&(
+                            <div style={{padding:"16px 18px"}}>
+                              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                                {roomsForFloor.map((r,j)=><span key={j} style={{background:V.secondary,color:V.fg,padding:"4px 10px",borderRadius:2,fontSize:12}}>{r.name}{r.jyou?"（"+r.jyou+"帖）":""}</span>)}
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                ):(
+                  <div style={{display:"grid",gridTemplateColumns:f2.length>0?"1fr 1fr":"1fr",gap:20}}>
+                    {[{label:c.floors==="平屋"?"平屋":"1階",rooms:f1},...(f2.length>0?[{label:"2階",rooms:f2}]:[])].map((fl,i)=>(
+                      <div key={i} style={{overflow:"hidden",borderRadius:4,border:`1px solid ${V.border}`,background:V.card}}>
+                        <div style={{padding:"60px",background:V.secondary,display:"flex",alignItems:"center",justifyContent:"center"}}><HouseIllust style={c.style}/></div>
+                        <div style={{padding:"16px 18px",display:"flex",flexWrap:"wrap",gap:6}}>{fl.rooms.map((r,j)=><span key={j} style={{background:V.secondary,color:V.fg,padding:"4px 10px",borderRadius:2,fontSize:12}}>{r.name}{r.jyou?"（"+r.jyou+"帖）":""}</span>)}</div>
                       </div>
-                      <div style={{padding:"18px 20px"}}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                          <span style={{fontSize:12,letterSpacing:".08em",color:V.muted}}>床面積</span>
-                          {fl.rooms.reduce((s,r)=>s+(parseFloat(r.jyou)||0),0)>0&&<span style={{fontSize:14,fontWeight:500,color:V.fg}}>{fl.rooms.reduce((s,r)=>s+(parseFloat(r.jyou)||0),0).toFixed(1)}㎡</span>}
-                        </div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                          {fl.rooms.map((r,j)=><span key={j} style={{background:V.secondary,color:V.fg,padding:"4px 10px",borderRadius:2,fontSize:12}}>{r.name}{r.jyou?"（"+r.jyou+"帖）":""}</span>)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </section>
 
-              {/* ── インテリアイメージ ── */}
+              {/* ── 内外観イメージ ── */}
               {allImages.slice(2,6).length>0&&(
                 <section style={{background:V.secondary,padding:"40px 32px"}}>
-                  <SecTitle text="インテリアイメージ"/>
+                  <SecTitle text="内外観イメージ"/>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:20}}>
                     {allImages.slice(2,6).map((img,i)=>(
-                      <div key={i} style={{cursor:"pointer"}} onClick={()=>setLightbox({images:allImages,idx:i+2})}>
-                        <div style={{borderRadius:4,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}}>
-                          <img src={img} style={{width:"100%",height:"100%",objectFit:"cover",transition:"transform .5s"}}/>
-                        </div>
-                        <div style={{marginTop:10}}>
-                          <h4 style={{fontSize:14,fontWeight:500,color:V.fg,margin:"0 0 4px"}}>{iLabels[i]||"写真"+(i+1)}</h4>
-                        </div>
+                      <div key={i} style={{cursor:"pointer",borderRadius:4,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}} onClick={()=>setLightbox({images:allImages,idx:i+2})}>
+                        <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                       </div>
                     ))}
                   </div>
@@ -1370,22 +1395,6 @@ export default function App(){
                   ))}
                 </div>
               </section>
-
-              {/* ── 写真ギャラリー ── */}
-              {allImages.length>1&&(
-                <section style={{background:V.secondary,padding:"40px 32px"}}>
-                  <SecTitle text="フォトギャラリー"/>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
-                    {allImages.map((img,i)=>(
-                      <div key={i} onClick={()=>setLightbox({images:allImages,idx:i})} style={{borderRadius:4,overflow:"hidden",aspectRatio:"4/3",cursor:"pointer",background:"#c5d5e5",transition:"opacity .15s"}}
-                        onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                        <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                      </div>
-                    ))}
-                  </div>
-                  <p style={{marginTop:8,fontSize:12,color:V.muted,textAlign:"center"}}>クリックで拡大表示</p>
-                </section>
-              )}
 
               {/* ── YouTube ── */}
               {ytId&&(
