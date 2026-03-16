@@ -221,11 +221,12 @@ function FeatureFilter({selected,onChange}){
 // ライトボックス
 function Lightbox({images,idx,onClose,onPrev,onNext}){
   // price_items ロード
+  // price_itemsは常に全件取得（case_idフィルタはUI側で行う）
   useEffect(()=>{
-    if(config&&!priceLoaded){
+    if(config){
       sbGetPriceItems(config.url,config.key).then(items=>{setPriceItems(items);setPriceLoaded(true);}).catch(()=>setPriceLoaded(true));
     }
-  },[config,priceLoaded]);
+  },[config]);
 
   useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();if(e.key==="ArrowLeft")onPrev();if(e.key==="ArrowRight")onNext();};window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);},[]);
   return(
@@ -1103,13 +1104,14 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
   const sel = {...inp};
 
   // この事例に紐づく項目
-  const caseItems = priceItems.filter(p=>p.case_id===caseId);
+  const caseId_str = caseId ? String(caseId) : null;
+  const caseItems = priceItems.filter(p=>String(p.case_id)===caseId_str);
 
   function calcAmt(item){ return item.calc_type==="unit_price"?(Number(item.unit_price)||0)*(Number(item.quantity)||1):(Number(item.amount)||0); }
   const total = caseItems.filter(p=>p.display_client).reduce((s,p)=>s+calcAmt(p),0);
 
   function openNew() {
-    setEditItem({category:"建物本体",name:"",calc_type:"fixed",amount:0,unit_price:0,quantity:1,display_client:true,display_internal:true,sort_order:caseItems.length*10,note:"",case_id:caseId});
+    setEditItem({category:"建物本体",name:"",calc_type:"fixed",amount:0,unit_price:0,quantity:1,display_client:true,display_internal:true,sort_order:caseItems.length*10,note:"",case_id:caseId_str});
   }
 
   async function save() {
@@ -1120,6 +1122,8 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
     try {
       // case_idを文字列として確実に設定
       const item = {...editItem, case_id:String(caseId)};
+      // amountを確実に数値に
+      if(item.calc_type!=="unit_price"){item.amount=Number(item.amount)||0;}
       console.log("Saving price item:", item);
       const saved = await sbUpsertPriceItem(config.url,config.key,item);
       console.log("Saved:", saved);
@@ -1141,8 +1145,8 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
   }
 
   if(!caseId) return(
-    <div style={{padding:"12px 14px",background:"#f5f0e8",borderRadius:7,fontSize:12,color:"#8a7a6a"}}>
-      ※ 新規事例は一度保存後に金額を登録できます
+    <div style={{padding:"12px 14px",background:"#fff3cd",borderRadius:7,fontSize:12,color:"#856404",border:"1px solid #ffc107"}}>
+      💡 まず右上の「登録する」ボタンで事例を保存してください。保存後に金額を登録できます。
     </div>
   );
 
