@@ -318,7 +318,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     return `
     ${hdr()}
     <!-- P1: 左テキスト+面積カード / 右2×2写真グリッド -->
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:24px 36px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:transparent;display:flex;flex-direction:column;padding:24px 36px;gap:0;overflow:hidden;">
       <div style="display:grid;grid-template-columns:45% 55%;gap:20px;flex:1;min-height:0;">
         <!-- 左: テキスト + 面積カード -->
         <div style="display:flex;flex-direction:column;gap:16px;">
@@ -364,8 +364,8 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     const jyouTotal = rooms.reduce((s,r)=>s+(parseFloat(r.jyou)||0),0);
     const tags = rooms.map(r=>`<span style="background:${V.card};color:${V.fg};padding:4px 10px;border-radius:3px;font-size:12px;display:inline-block;margin:0 5px 5px 0;font-family:${SANS};">${r.name}${r.jyou?"（"+r.jyou+"帖）":""}</span>`).join('');
     return `<div style="background:${V.secondary};border-radius:6px;overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;">
-      <div style="flex:1;overflow:hidden;background:#c5d5e5;position:relative;min-height:0;">
-        ${img?`<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;">🏠</div>`}
+      <div style="flex:1;overflow:hidden;background:${V.secondary};position:relative;min-height:0;display:flex;align-items:center;justify-content:center;">
+        ${img?`<img src="${img}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;"/>`:`<div style="display:flex;align-items:center;justify-content:center;font-size:80px;">🏠</div>`}
         <div style="position:absolute;bottom:12px;left:12px;background:${V.primary};padding:5px 14px;border-radius:3px;">
           <span style="color:white;font-size:13px;font-weight:600;font-family:${SANS};">${label}</span>
         </div>
@@ -381,7 +381,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   function p2Html() {
     const label1 = c.floors==="平屋"?"平屋":"1階";
     return `
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 20px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:16px 32px 16px;gap:0;overflow:hidden;">
       ${secTitle("間取りプラン")}
       ${floorCard(subImages[0],label1,f1rooms)}
     </div>`;
@@ -390,7 +390,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   // ── P2b: 2F間取り（2階建てのみ追加） ─────────────────────
   function p2bHtml() {
     return `
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 20px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:16px 32px 16px;gap:0;overflow:hidden;">
       ${secTitle("間取りプラン（2階）")}
       ${floorCard(subImages[1],"2階",f2rooms)}
     </div>`;
@@ -457,9 +457,9 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     return `
     <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:22px 36px 22px;gap:0;overflow:hidden;">
       ${c.concept?`
-      <div style="margin-bottom:16px;">
+      <div style="margin-bottom:16px;min-height:86mm;display:flex;flex-direction:column;justify-content:center;">
         ${secTitle("コンセプト")}
-        <p style="font-size:17px;line-height:2.1;color:${V.fg};margin:0;font-family:${SANS};">${c.concept}</p>
+        <p style="font-size:18px;line-height:2.2;color:${V.fg};margin:0;font-family:${SANS};">${c.concept}</p>
       </div>`:""}
       ${highlights.length>0?`
       <div style="margin-bottom:14px;">
