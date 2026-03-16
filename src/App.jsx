@@ -311,11 +311,11 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     <!-- Hero: flex:1でA3の残り全高を使う -->
     <div style="display:flex;flex-direction:column;flex:1;background:${V.secondary};overflow:hidden;">
       <!-- メインエリア: 左テキスト + 右写真 -->
-      <div style="display:grid;grid-template-columns:42% 58%;flex:1;min-height:0;">
+      <div style="display:grid;grid-template-columns:52% 48%;flex:1;min-height:0;">
         <!-- 左: テキスト -->
         <div style="display:flex;flex-direction:column;justify-content:center;padding:52px 52px 36px 56px;background:${V.secondary};">
           <p style="font-size:15px;letter-spacing:.22em;color:${V.primary};text-transform:uppercase;margin-bottom:14px;font-family:${SANS};">${customerName}様邸</p>
-          <h2 style="font-family:${SERIF};font-size:50px;font-weight:500;letter-spacing:-.01em;color:${V.fg};line-height:1.25;margin:0 0 24px;">${c.title||""}</h2>
+          <h2 style="font-family:${SERIF};font-size:44px;font-weight:500;letter-spacing:-.01em;color:${V.fg};line-height:1.3;margin:0 0 24px;">${c.title||""}</h2>
           <p style="font-size:17px;line-height:1.85;color:${V.muted};margin:0 0 36px;font-family:${SANS};white-space:pre-line;">${c.subtitle||""}</p>
           <div style="display:flex;align-items:center;gap:16px;">
             <div style="width:52px;height:1px;background:${V.primary};"></div>
@@ -558,10 +558,10 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
       <div style={{width:"420mm",height:"297mm",background:V.bg,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <HDR/>
         <div style={{display:"flex",flexDirection:"column",flex:1,background:V.secondary,overflow:"hidden"}}>
-          <div style={{display:"grid",gridTemplateColumns:"42% 58%",flex:1,minHeight:0}}>
+          <div style={{display:"grid",gridTemplateColumns:"52% 48%",flex:1,minHeight:0}}>
             <div style={{display:"flex",flexDirection:"column",justifyContent:"center",padding:"52px 52px 36px 56px",background:V.secondary}}>
               <p style={{fontSize:15,letterSpacing:".22em",color:V.primary,textTransform:"uppercase",marginBottom:14}}>{customerName}様邸</p>
-              <h2 style={{fontFamily:SERIF,fontSize:50,fontWeight:500,color:V.fg,lineHeight:1.25,margin:"0 0 24px"}}>{c.title||""}</h2>
+              <h2 style={{fontFamily:SERIF,fontSize:44,fontWeight:500,color:V.fg,lineHeight:1.3,margin:"0 0 24px"}}>{c.title||""}</h2>
               <p style={{fontSize:17,lineHeight:1.85,color:V.muted,margin:"0 0 36px",whiteSpace:"pre-line"}}>{c.subtitle||""}</p>
               <div style={{display:"flex",alignItems:"center",gap:16}}>
                 <div style={{width:52,height:1,background:V.primary}}/>
