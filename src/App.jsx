@@ -346,6 +346,14 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
           </div>
         </div>
       </div>
+      <!-- パース4枚 -->
+      ${subImages.slice(2,6).length>0?`
+      <div style="display:grid;grid-template-columns:repeat(${Math.min(subImages.slice(2,6).length,4)},1fr);gap:10px;margin-top:16px;">
+        ${subImages.slice(2,6).map(img=>`
+          <div style="border-radius:5px;overflow:hidden;aspect-ratio:4/3;background:#c5d5e5;">
+            <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>
+          </div>`).join('')}
+      </div>`:''}
     </div>`;
   }
 
@@ -438,14 +446,20 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
         </ul>
       </div>`).join('');
 
+    const highlights = (c.highlights||[]).filter(Boolean);
+    const hlHtml = highlights.map((h,i)=>`
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:${V.card};border-radius:4px;border:1px solid ${V.border};">
+        <div style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${V.primary};color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:${SANS};">${i+1}</div>
+        <p style="font-size:14px;line-height:1.7;color:${V.fg};margin:0;padding-top:3px;font-family:${SANS};">${h}</p>
+      </div>`).join('');
     return `
     ${hdr()}
-    ${iImgs.length>0?`
-    <section style="background:${V.secondary};padding:36px 40px 28px;">
-      ${secTitle("インテリアイメージ")}
-      <div style="display:grid;grid-template-columns:repeat(${Math.min(iImgs.length,4)},1fr);gap:24px;">${imgCards}</div>
+    ${highlights.length>0?`
+    <section style="background:${V.secondary};padding:28px 40px 24px;">
+      ${secTitle("デザインハイライト")}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${hlHtml}</div>
     </section>`:''}
-    <section style="background:${V.bg};padding:36px 40px 32px;flex:1;">
+    <section style="background:${V.bg};padding:28px 40px 32px;flex:1;">
       ${secTitle("標準設備・仕様")}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;">${specCards}</div>
     </section>`;
@@ -593,6 +607,16 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
               </div>
             ))}
           </div>
+          {/* パース4枚 */}
+          {subImages.slice(2,6).length>0&&(
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(subImages.slice(2,6).length,4)},1fr)`,gap:10,flexShrink:0}}>
+              {subImages.slice(2,6).map((img,i)=>(
+                <div key={i} style={{borderRadius:5,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}}>
+                  <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     )},
@@ -628,17 +652,17 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
         </div>
       </div>
     )}]:[]),
-    {label:"P(n) インテリア+設備",node:(
+    {label:"P(n) ハイライト+設備",node:(
       <div style={{width:"420mm",height:"297mm",background:V.bg,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <HDR/>
-        {subImages.slice(2,6).length>0&&(
+        {(c.highlights||[]).filter(Boolean).length>0&&(
           <div style={{background:V.secondary,padding:"28px 40px 24px"}}>
-            <SecTitle text="インテリアイメージ"/>
-            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(subImages.slice(2,6).length,4)},1fr)`,gap:20}}>
-              {subImages.slice(2,6).map((img,i)=>(
-                <div key={i}>
-                  <div style={{borderRadius:4,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}}><img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
-                  <p style={{margin:"10px 0 0",fontSize:13,fontWeight:500,color:V.fg}}>{["リビング・ダイニング","キッチン","主寝室","バスルーム"][i]}</p>
+            <SecTitle text="デザインハイライト"/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {(c.highlights||[]).filter(Boolean).map((h,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",background:V.card,borderRadius:4,border:`1px solid ${V.border}`}}>
+                  <div style={{width:26,height:26,minWidth:26,borderRadius:"50%",background:V.primary,color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700}}>{i+1}</div>
+                  <p style={{fontSize:13,lineHeight:1.7,color:V.fg,margin:0,paddingTop:3}}>{h}</p>
                 </div>
               ))}
             </div>
