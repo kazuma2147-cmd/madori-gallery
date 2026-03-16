@@ -1180,8 +1180,8 @@ export default function App(){
 
         // v0デザイントークン
         const V={bg:"#f5f7fa",card:"#ffffff",fg:"#252d3d",primary:"#1e3a5f",secondary:"#edf0f5",muted:"#5c6b7a",border:"#d0d8e4"};
-        const SERIF="Georgia,'Noto Serif JP',serif";
-        const SANS="'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif";
+        const SERIF="'Noto Serif JP',Georgia,'Times New Roman',serif";
+        const SANS="'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
 
         function SecTitle({text}){return(
           <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24}}>
@@ -1321,18 +1321,21 @@ export default function App(){
               {/* ── 間取りプラン: 登録した全画像を表示 ── */}
               <section style={{background:V.bg,padding:"40px 32px"}}>
                 <SecTitle text="間取りプラン"/>
-                {subImages.length>0?(
-                  <div style={{display:"grid",gridTemplateColumns:subImages.length===1?"1fr":"1fr 1fr",gap:20}}>
-                    {subImages.map((img,i)=>{
-                      const floorLabel=i===0?(c.floors==="平屋"?"平屋":"1階"):i===1&&f2.length>0?"2階":"";
-                      const roomsForFloor=i===0?f1:i===1?f2:[];
+                {(()=>{
+                  const maxImgs=c.floors==="平屋"?1:2;
+                  const floorImgs=subImages.slice(0,maxImgs);
+                  if(floorImgs.length>0) return(
+                  <div style={{display:"grid",gridTemplateColumns:floorImgs.length===1?"1fr":"1fr 1fr",gap:20}}>
+                    {floorImgs.map((img,i)=>{
+                      const floorLabel=i===0?(c.floors==="平屋"?"平屋":"1階"):"2階";
+                      const roomsForFloor=i===0?f1:f2;
                       return(
                         <div key={i} style={{overflow:"hidden",borderRadius:4,border:`1px solid ${V.border}`,background:V.card,display:"flex",flexDirection:"column"}}>
                           <div style={{position:"relative",overflow:"hidden",background:"#c5d5e5"}}>
                             <img src={img} style={{width:"100%",height:"auto",display:"block",objectFit:"cover"}}/>
-                            {floorLabel&&<div style={{position:"absolute",bottom:14,left:14,background:V.primary,padding:"5px 14px",borderRadius:2}}>
+                            <div style={{position:"absolute",bottom:14,left:14,background:V.primary,padding:"5px 14px",borderRadius:2}}>
                               <span style={{color:"white",fontSize:13,fontWeight:500}}>{floorLabel}</span>
-                            </div>}
+                            </div>
                           </div>
                           {roomsForFloor.length>0&&(
                             <div style={{padding:"16px 18px"}}>
@@ -1344,8 +1347,8 @@ export default function App(){
                         </div>
                       );
                     })}
-                  </div>
-                ):(
+                  </div>);
+                  return(
                   <div style={{display:"grid",gridTemplateColumns:f2.length>0?"1fr 1fr":"1fr",gap:20}}>
                     {[{label:c.floors==="平屋"?"平屋":"1階",rooms:f1},...(f2.length>0?[{label:"2階",rooms:f2}]:[])].map((fl,i)=>(
                       <div key={i} style={{overflow:"hidden",borderRadius:4,border:`1px solid ${V.border}`,background:V.card}}>
@@ -1354,7 +1357,8 @@ export default function App(){
                       </div>
                     ))}
                   </div>
-                )}
+                  );
+                })()}
               </section>
 
               {/* ── 内外観イメージ ── */}
