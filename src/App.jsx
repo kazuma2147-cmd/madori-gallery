@@ -346,6 +346,14 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
           </div>
         </div>
       </div>
+      <!-- パース4枚 -->
+      ${subImages.slice(2,6).length>0?`
+      <div style="display:grid;grid-template-columns:repeat(${Math.min(subImages.slice(2,6).length,4)},1fr);gap:10px;margin-top:16px;">
+        ${subImages.slice(2,6).map(img=>`
+          <div style="border-radius:5px;overflow:hidden;aspect-ratio:4/3;background:#c5d5e5;">
+            <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>
+          </div>`).join('')}
+      </div>`:''}
     </div>`;
   }
 
@@ -593,6 +601,16 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
               </div>
             ))}
           </div>
+          {/* パース4枚 */}
+          {subImages.slice(2,6).length>0&&(
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(subImages.slice(2,6).length,4)},1fr)`,gap:10,flexShrink:0}}>
+              {subImages.slice(2,6).map((img,i)=>(
+                <div key={i} style={{borderRadius:5,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}}>
+                  <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     )},
@@ -760,6 +778,7 @@ export default function App(){
   const [imgUploading,setImgUploading]=useState(false);const [addImgUploading,setAddImgUploading]=useState(false);
   const imgRef=useRef();const addImgRef=useRef();
   const [dragIdx,setDragIdx]=useState(null);
+  const [imgDragIdx,setImgDragIdx]=useState(null);
 
   useEffect(()=>{if(envConfig)return;try{const s=localStorage.getItem(CONFIG_KEY);if(s)setConfig(JSON.parse(s));}catch{}},[]);
   const fetchCases=useCallback(async cfg=>{if(!cfg)return;setLoading(true);setLoadErr("");try{setCases(await sbGetCases(cfg.url,cfg.key));}catch(e){setLoadErr(e.message);}finally{setLoading(false);}},[]); 
@@ -816,6 +835,9 @@ export default function App(){
 
   // ドラッグ＆ドロップ（部屋）
   function onDragStart(i){setDragIdx(i);}
+  function onImgDragStart(i){setImgDragIdx(i);}
+  function onImgDragOver(e,i){e.preventDefault();if(imgDragIdx===null||imgDragIdx===i)return;const imgs=[...(formData.images||[])];const[moved]=imgs.splice(imgDragIdx,1);imgs.splice(i,0,moved);setFormData(f=>({...f,images:imgs}));setImgDragIdx(i);}
+  function onImgDragEnd(){setImgDragIdx(null);}
   function onDragOver(e,i){e.preventDefault();if(dragIdx===null||dragIdx===i)return;const rs=[...formData.rooms];const[moved]=rs.splice(dragIdx,1);rs.splice(i,0,moved);setFormData(f=>({...f,rooms:rs}));setDragIdx(i);}
   function onDragEnd(){setDragIdx(null);}
 
@@ -911,8 +933,10 @@ export default function App(){
             <Sec title="🖼 追加画像（間取り図・パース・内観など）">
               <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:10}}>
                 {(formData.images||[]).map((img,i)=>(
-                  <div key={i} style={{position:"relative",width:120,height:84,borderRadius:7,overflow:"hidden",border:"1px solid #e0d8cc"}}>
-                    <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  <div key={i} draggable onDragStart={()=>onImgDragStart(i)} onDragOver={e=>onImgDragOver(e,i)} onDragEnd={onImgDragEnd}
+                    style={{position:"relative",width:120,height:84,borderRadius:7,overflow:"hidden",border:`2px solid ${imgDragIdx===i?"#c9a96e":"#e0d8cc"}`,cursor:"grab",opacity:imgDragIdx===i?0.5:1,flexShrink:0}}>
+                    <img src={img} style={{width:"100%",height:"100%",objectFit:"cover",pointerEvents:"none"}}/>
+                    <div style={{position:"absolute",top:2,left:3,color:"rgba(255,255,255,.8)",fontSize:12,pointerEvents:"none"}}>☰</div>
                     <button onClick={()=>setFormData(f=>({...f,images:f.images.filter((_,j)=>j!==i)}))} style={{position:"absolute",top:3,right:3,background:"rgba(192,57,43,.85)",border:"none",borderRadius:"50%",width:18,height:18,color:"white",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
                   </div>
                 ))}
@@ -996,11 +1020,16 @@ export default function App(){
                   </div>
                   <div>
                     {i===0&&<Lbl>帖数</Lbl>}
-                    <select value={JYOU_LIST.includes(String(r.jyou))?String(r.jyou):r.jyou?"その他":""} onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],jyou:e.target.value==="その他"?"":e.target.value};setFormData(f=>({...f,rooms:rs}));}} style={sel}>
-                      <option value="">-</option>
-                      {JYOU_LIST.map(j=><option key={j} value={j}>{j==="その他"?j:`${j}帖`}</option>)}
-                    </select>
-                    {(!JYOU_LIST.includes(String(r.jyou))&&r.jyou)||r.jyou==="その他"?<input value={r.jyou==="その他"?"":r.jyou} onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],jyou:e.target.value};setFormData(f=>({...f,rooms:rs}));}} style={{...inp,marginTop:4}} placeholder="帖数"/>:null}
+                    <div style={{display:"flex",alignItems:"center",gap:4}}>
+                      <input
+                        type="number" min="0.5" max="50" step="0.5"
+                        value={r.jyou||""}
+                        onChange={e=>{const rs=[...formData.rooms];rs[i]={...rs[i],jyou:e.target.value};setFormData(f=>({...f,rooms:rs}));}}
+                        placeholder="帖"
+                        style={{...inp,width:72,textAlign:"center"}}
+                      />
+                      <span style={{fontSize:12,color:"#8a7a6a",flexShrink:0}}>帖</span>
+                    </div>
                   </div>
                   <button onClick={()=>setFormData(f=>({...f,rooms:f.rooms.filter((_,j)=>j!==i)}))} style={{padding:"8px 9px",border:"1px solid #f5c6cb",borderRadius:5,background:"#fff5f5",color:"#c0392b",cursor:"pointer",alignSelf:"flex-end"}}>×</button>
                 </div>
