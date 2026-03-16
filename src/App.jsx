@@ -96,7 +96,19 @@ async function sbGetPriceItems(url,key,caseId){
   if(!r.ok)return[];
   try{return await r.json();}catch{return[];}
 }
-async function sbUpsertPriceItem(url,key,item){const{id,...data}=item;if(id){const r=await fetch(`${url}/rest/v1/price_items?id=eq.${id}`,{method:"PATCH",headers:sbHeaders(key),body:JSON.stringify(data)});if(!r.ok)throw new Error("更新失敗");return(await r.json())[0];}else{const r=await fetch(`${url}/rest/v1/price_items`,{method:"POST",headers:sbHeaders(key),body:JSON.stringify(data)});if(!r.ok)throw new Error("追加失敗");return(await r.json())[0];}}
+async function sbUpsertPriceItem(url,key,item){
+  const{id,...data}=item;
+  if(id){
+    const r=await fetch(`${url}/rest/v1/price_items?id=eq.${id}`,{method:"PATCH",headers:sbHeaders(key),body:JSON.stringify(data)});
+    if(!r.ok){const t=await r.text();throw new Error(`更新失敗 ${r.status}: ${t}`);}
+    return(await r.json())[0];
+  }else{
+    const r=await fetch(`${url}/rest/v1/price_items`,{method:"POST",headers:sbHeaders(key),body:JSON.stringify(data)});
+    if(!r.ok){const t=await r.text();throw new Error(`追加失敗 ${r.status}: ${t}`);}
+    const rows=await r.json();
+    return rows[0];
+  }
+}
 async function sbDeletePriceItem(url,key,id){const r=await fetch(`${url}/rest/v1/price_items?id=eq.${id}`,{method:"DELETE",headers:sbHeaders(key,{"Prefer":"return=minimal"})});if(!r.ok)throw new Error("削除失敗");}
 
 function HouseIllust({style}){
@@ -1103,14 +1115,22 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
   async function save() {
     if(!editItem.name.trim()){alert("項目名を入力してください");return;}
     if(!caseId){alert("先に事例を保存してから金額を登録してください");return;}
+    if(!config?.url||!config?.key){alert("設定エラー: Supabase接続情報がありません");return;}
     setSaving(true);
     try {
-      const item = {...editItem, case_id:caseId};
+      // case_idを文字列として確実に設定
+      const item = {...editItem, case_id:String(caseId)};
+      console.log("Saving price item:", item);
       const saved = await sbUpsertPriceItem(config.url,config.key,item);
+      console.log("Saved:", saved);
+      if(!saved){throw new Error("保存結果が空です。Supabaseのcase_idカラムが存在するか確認してください");}
       if(editItem.id){setPriceItems(prev=>prev.map(p=>p.id===saved.id?saved:p));}
       else{setPriceItems(prev=>[...prev,saved]);}
       setEditItem(null);
-    } catch(e){alert("保存失敗: "+e.message);}
+    } catch(e){
+      console.error("Price save error:", e);
+      alert("保存失敗: "+e.message+" ※SupabaseのSQL Editor: ALTER TABLE price_items ADD COLUMN IF NOT EXISTS case_id TEXT;");
+    }
     finally{setSaving(false);}
   }
 
