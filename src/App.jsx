@@ -89,7 +89,13 @@ async function sbUploadImage(url,key,file){const ext=file.name.split(".").pop();
 async function sbTestConnection(url,key){let r;try{r=await fetch(`${url}/rest/v1/cases?select=id&limit=1`,{headers:sbHeaders(key)});}catch(e){throw new Error(`ネットワークエラー: ${e.message}`);}if(r.status===401)throw new Error("認証エラー");if(!r.ok)throw new Error(`エラー ${r.status}`);return true;}
 
 // ── 金額管理 DB関数 ──────────────────────────────────────────
-async function sbGetPriceItems(url,key){const r=await fetch(`${url}/rest/v1/price_items?select=*&order=sort_order.asc,id.asc`,{headers:sbHeaders(key)});if(!r.ok){if(r.status===404||r.status===42)return[];return[];}try{return await r.json();}catch{return[];}}
+async function sbGetPriceItems(url,key,caseId){
+  // caseIdあり→その事例専用、なし→全件取得
+  const filter = caseId ? `&case_id=eq.${caseId}` : '';
+  const r=await fetch(`${url}/rest/v1/price_items?select=*&order=sort_order.asc,id.asc${filter}`,{headers:sbHeaders(key)});
+  if(!r.ok)return[];
+  try{return await r.json();}catch{return[];}
+}
 async function sbUpsertPriceItem(url,key,item){const{id,...data}=item;if(id){const r=await fetch(`${url}/rest/v1/price_items?id=eq.${id}`,{method:"PATCH",headers:sbHeaders(key),body:JSON.stringify(data)});if(!r.ok)throw new Error("更新失敗");return(await r.json())[0];}else{const r=await fetch(`${url}/rest/v1/price_items`,{method:"POST",headers:sbHeaders(key),body:JSON.stringify(data)});if(!r.ok)throw new Error("追加失敗");return(await r.json())[0];}}
 async function sbDeletePriceItem(url,key,id){const r=await fetch(`${url}/rest/v1/price_items?id=eq.${id}`,{method:"DELETE",headers:sbHeaders(key,{"Prefer":"return=minimal"})});if(!r.ok)throw new Error("削除失敗");}
 
@@ -487,7 +493,8 @@ function PdfPrintModal({c, customerName, similarCases, onClose, priceItemsForPdf
   function p4Html() {
     // 金額管理データ優先、なければ予算から自動計算
     function calcAmt(item){ return item.calc_type==="unit_price"?(Number(item.unit_price)||0)*(Number(item.quantity)||1):(Number(item.amount)||0); }
-    const clientItems = (priceItemsForPdf||[]).filter(p=>p.display_client);
+    // この事例専用 or グローバルテンプレートのみ
+    const clientItems = (priceItemsForPdf||[]).filter(p=>p.display_client&&(p.case_id===c._sbId||!p.case_id));
     const hasPriceData = clientItems.length>0;
     const pdfTotal = hasPriceData ? clientItems.reduce((s,p)=>s+calcAmt(p),0) : (()=>{
       const honTai=midMan>0?Math.round(midMan*0.78):0;
@@ -896,7 +903,11 @@ function PriceAdmin({config, priceItems, setPriceItems}) {
         <div style={{background:"#f0f4ff",border:"1px solid #c0d0f0",borderRadius:8,padding:"14px 18px",marginBottom:20,fontSize:12,color:"#3a5a8a"}}>
           <strong>📋 初回セットアップ</strong>: SupabaseのSQL Editorで以下を実行してください:<br/>
           <code style={{display:"block",marginTop:8,padding:"8px",background:"white",borderRadius:4,fontSize:11,whiteSpace:"pre",overflowX:"auto"}}>
-{`CREATE TABLE price_items (
+{`-- 既にテーブルがある場合はこちらを実行:
+ALTER TABLE price_items ADD COLUMN IF NOT EXISTS case_id TEXT;
+
+-- 新規作成の場合:
+CREATE TABLE price_items (
   id BIGSERIAL PRIMARY KEY,
   category TEXT NOT NULL DEFAULT '建物本体',
   name TEXT NOT NULL,
@@ -1072,6 +1083,168 @@ CREATE POLICY "Allow all" ON price_items FOR ALL USING (true) WITH CHECK (true);
   );
 }
 
+// ── 事例専用金額エディタ（管理フォーム内） ────────────────────
+function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
+  const [editItem, setEditItem] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+  const inp = {padding:"7px 10px",border:"1px solid #d4cfc5",borderRadius:6,fontSize:13,width:"100%",boxSizing:"border-box"};
+  const sel = {...inp};
+
+  // この事例に紐づく項目
+  const caseItems = priceItems.filter(p=>p.case_id===caseId);
+
+  function calcAmt(item){ return item.calc_type==="unit_price"?(Number(item.unit_price)||0)*(Number(item.quantity)||1):(Number(item.amount)||0); }
+  const total = caseItems.filter(p=>p.display_client).reduce((s,p)=>s+calcAmt(p),0);
+
+  function openNew() {
+    setEditItem({category:"建物本体",name:"",calc_type:"fixed",amount:0,unit_price:0,quantity:1,display_client:true,display_internal:true,sort_order:caseItems.length*10,note:"",case_id:caseId});
+  }
+
+  async function save() {
+    if(!editItem.name.trim()){alert("項目名を入力してください");return;}
+    if(!caseId){alert("先に事例を保存してから金額を登録してください");return;}
+    setSaving(true);
+    try {
+      const item = {...editItem, case_id:caseId};
+      const saved = await sbUpsertPriceItem(config.url,config.key,item);
+      if(editItem.id){setPriceItems(prev=>prev.map(p=>p.id===saved.id?saved:p));}
+      else{setPriceItems(prev=>[...prev,saved]);}
+      setEditItem(null);
+    } catch(e){alert("保存失敗: "+e.message);}
+    finally{setSaving(false);}
+  }
+
+  async function del(id) {
+    if(!window.confirm("削除しますか？"))return;
+    try{await sbDeletePriceItem(config.url,config.key,id);setPriceItems(prev=>prev.filter(p=>p.id!==id));}
+    catch(e){alert("削除失敗: "+e.message);}
+  }
+
+  if(!caseId) return(
+    <div style={{padding:"12px 14px",background:"#f5f0e8",borderRadius:7,fontSize:12,color:"#8a7a6a"}}>
+      ※ 新規事例は一度保存後に金額を登録できます
+    </div>
+  );
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:13,color:"#3a3028"}}>
+          合計: <strong>¥{total.toLocaleString()}</strong>
+          <span style={{fontSize:11,color:"#8a7a6a",marginLeft:8}}>（お客様表示分）</span>
+        </div>
+        <button onClick={openNew} style={{padding:"6px 14px",background:"#1e3a5f",color:"white",border:"none",borderRadius:6,fontSize:12,cursor:"pointer",fontWeight:700}}>＋ 追加</button>
+      </div>
+
+      {caseItems.length===0?(
+        <div style={{padding:"12px",background:"#faf8f5",borderRadius:6,fontSize:12,color:"#a89a8a",textAlign:"center"}}>まだ金額項目がありません</div>
+      ):(
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:8}}>
+          <thead><tr style={{background:"#f5f0e8"}}>
+            {["カテゴリ","項目名","金額","表示","操作"].map(h=>(
+              <th key={h} style={{padding:"6px 8px",textAlign:"left",color:"#8a7a6a",fontWeight:600,borderBottom:"1px solid #e8e2d8"}}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {caseItems.sort((a,b)=>a.sort_order-b.sort_order).map(item=>(
+              <tr key={item.id} style={{borderBottom:"1px solid #f0ebe0"}}>
+                <td style={{padding:"6px 8px",color:"#8a7a6a"}}>{item.category}</td>
+                <td style={{padding:"6px 8px",fontWeight:500}}>{item.name}</td>
+                <td style={{padding:"6px 8px",fontWeight:600}}>¥{calcAmt(item).toLocaleString()}</td>
+                <td style={{padding:"6px 8px",textAlign:"center"}}>
+                  <span style={{background:item.display_client?"#d4edda":"#f8d7da",color:item.display_client?"#155724":"#721c24",padding:"2px 7px",borderRadius:9,fontSize:10}}>
+                    {item.display_client?"表示":"非表示"}
+                  </span>
+                </td>
+                <td style={{padding:"6px 8px"}}>
+                  <div style={{display:"flex",gap:4}}>
+                    <button onClick={()=>setEditItem({...item})} style={{padding:"2px 8px",border:"1px solid #c9b89a",borderRadius:4,background:"white",cursor:"pointer",fontSize:11}}>編集</button>
+                    <button onClick={()=>del(item.id)} style={{padding:"2px 7px",border:"1px solid #f5c6cb",borderRadius:4,background:"#fff5f5",color:"#c0392b",cursor:"pointer",fontSize:11}}>削除</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {/* 編集モーダル */}
+      {editItem&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400}}>
+          <div style={{background:"white",borderRadius:12,padding:"24px 28px",width:480,maxHeight:"85vh",overflowY:"auto"}}>
+            <h3 style={{margin:"0 0 16px",fontSize:16}}>{editItem.id?"金額項目を編集":"金額項目を追加"}</h3>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>項目名 *</label>
+                <input value={editItem.name} onChange={e=>setEditItem(p=>({...p,name:e.target.value}))} style={inp} placeholder="例: 木造軸組工法 本体工事"/>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>カテゴリ</label>
+                <select value={editItem.category} onChange={e=>setEditItem(p=>({...p,category:e.target.value}))} style={sel}>
+                  {["建物本体","付帯工事","外構","カーテン","エアコン","TVアンテナ","地盤改良工事","オプション","設計申請","その他"].map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>計算方式</label>
+                <select value={editItem.calc_type} onChange={e=>setEditItem(p=>({...p,calc_type:e.target.value}))} style={sel}>
+                  <option value="fixed">固定金額</option>
+                  <option value="unit_price">数量×単価</option>
+                  <option value="manual">手入力</option>
+                </select>
+              </div>
+              {editItem.calc_type==="unit_price"?(
+                <>
+                  <div>
+                    <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>単価（円）</label>
+                    <input type="number" value={editItem.unit_price} onChange={e=>setEditItem(p=>({...p,unit_price:Number(e.target.value)}))} style={inp}/>
+                  </div>
+                  <div>
+                    <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>数量</label>
+                    <input type="number" step="0.1" value={editItem.quantity} onChange={e=>setEditItem(p=>({...p,quantity:Number(e.target.value)}))} style={inp}/>
+                  </div>
+                </>
+              ):(
+                <div style={{gridColumn:"1/-1"}}>
+                  <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>金額（円）</label>
+                  <input type="number" value={editItem.amount} onChange={e=>setEditItem(p=>({...p,amount:Number(e.target.value)}))} style={inp} placeholder="例: 25000000"/>
+                </div>
+              )}
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>表示順</label>
+                <input type="number" value={editItem.sort_order} onChange={e=>setEditItem(p=>({...p,sort_order:Number(e.target.value)}))} style={inp}/>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,justifyContent:"flex-end"}}>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
+                  <input type="checkbox" checked={editItem.display_client} onChange={e=>setEditItem(p=>({...p,display_client:e.target.checked}))}/>
+                  お客様に表示
+                </label>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
+                  <input type="checkbox" checked={editItem.display_internal} onChange={e=>setEditItem(p=>({...p,display_internal:e.target.checked}))}/>
+                  社内のみ表示
+                </label>
+              </div>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:3}}>備考</label>
+                <input value={editItem.note||""} onChange={e=>setEditItem(p=>({...p,note:e.target.value}))} style={inp} placeholder="社内メモ"/>
+              </div>
+            </div>
+            <div style={{padding:"8px 12px",background:"#f5f0e8",borderRadius:5,fontSize:12,marginBottom:14,color:"#6a5a4a"}}>
+              金額: ¥{(editItem.calc_type==="unit_price"?(Number(editItem.unit_price)||0)*(Number(editItem.quantity)||1):(Number(editItem.amount)||0)).toLocaleString()}
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={()=>setEditItem(null)} style={{padding:"8px 16px",border:"1px solid #d4cfc5",borderRadius:6,background:"white",cursor:"pointer",fontSize:13}}>キャンセル</button>
+              <button onClick={save} disabled={saving} style={{padding:"8px 20px",background:"#1e3a5f",color:"white",border:"none",borderRadius:6,fontSize:13,fontWeight:700,cursor:saving?"not-allowed":"pointer"}}>
+                {saving?"保存中...":"保存"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ── お客様向け金額表示コンポーネント ─────────────────────────
 function PriceSection({priceItems, totalOverride}) {
   const [expanded, setExpanded] = React.useState(false);
@@ -1107,7 +1280,8 @@ function PriceSection({priceItems, totalOverride}) {
     ? Math.round(loanAmt*(monthRate*Math.pow(1+monthRate,months))/(Math.pow(1+monthRate,months)-1))
     : Math.round(loanAmt/months);
 
-  const displayTotal = totalOverride||total;
+  // priceItemsが登録されていればそれを使う、なければtotalOverrideを使う
+  const displayTotal = total>0 ? total : (totalOverride||0);
 
   if(displayTotal===0&&priceItems.length===0) return null;
 
@@ -1670,6 +1844,14 @@ export default function App(){
               {(formData.highlights||[]).length<5&&<button onClick={()=>setFormData(f=>({...f,highlights:[...f.highlights,""]}))} style={{padding:"6px 12px",border:"1px dashed #c9b89a",borderRadius:6,background:"transparent",cursor:"pointer",fontSize:12,color:"#6a5a4a"}}>＋ 追加</button>}
             </Sec>
 
+            {/* 金額内訳（この事例専用） */}
+            <Sec title="💴 金額内訳（この事例専用）">
+              <div style={{fontSize:11,color:"#a89a8a",marginBottom:10}}>
+                この事例専用の金額内訳を登録します。登録するとプレゼンと詳細ページに反映されます。
+              </div>
+              <CasePriceEditor config={config} caseId={editingCase} priceItems={priceItems} setPriceItems={setPriceItems}/>
+            </Sec>
+
             {/* 部屋構成 - 1F/2F分割表示 */}
             <Sec title="🛋 部屋構成">
               {[{floorNum:1,label:"1階",addLabel:"＋ 1階に部屋を追加"},{...(formData.floors!=="平屋"?{floorNum:2,label:"2階",addLabel:"＋ 2階に部屋を追加"}:{floorNum:null})}].filter(f=>f.floorNum).map(({floorNum,label,addLabel})=>{
@@ -2116,11 +2298,11 @@ export default function App(){
               )}
 
               {/* ── 概算建築費（金額管理データ優先・なければ予算から計算） ── */}
-              <PriceSection priceItems={(() => {
-                // casesに紐付いたpriceItemsがあれば使う（将来拡張）
-                // なければ全体の登録データを使用
-                return priceItems.filter(p=>p.display_client);
-              })()} totalOverride={total>0?total:0}/>
+              <PriceSection
+                priceItems={priceItems.filter(p=>p.display_client&&(p.case_id===c._sbId||p.case_id===null||p.case_id===undefined))}
+                caseId={c._sbId}
+                totalOverride={total>0?total:0}
+              />
 
               {/* ── フッター ── */}
               <section style={{background:V.card,borderTop:`1px solid ${V.border}`,padding:"36px 32px"}}>
