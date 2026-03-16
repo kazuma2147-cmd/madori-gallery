@@ -88,6 +88,11 @@ async function sbDeleteCase(url,key,id){const r=await fetch(`${url}/rest/v1/case
 async function sbUploadImage(url,key,file){const ext=file.name.split(".").pop();const fn=`${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;const r=await fetch(`${url}/storage/v1/object/case-images/${fn}`,{method:"POST",headers:{"apikey":key,"Authorization":`Bearer ${key}`,"Content-Type":file.type,"x-upsert":"true"},body:file});if(!r.ok)throw new Error(`画像アップ失敗: ${r.status}`);return`${url}/storage/v1/object/public/case-images/${fn}`;}
 async function sbTestConnection(url,key){let r;try{r=await fetch(`${url}/rest/v1/cases?select=id&limit=1`,{headers:sbHeaders(key)});}catch(e){throw new Error(`ネットワークエラー: ${e.message}`);}if(r.status===401)throw new Error("認証エラー");if(!r.ok)throw new Error(`エラー ${r.status}`);return true;}
 
+// ── 金額管理 DB関数 ──────────────────────────────────────────
+async function sbGetPriceItems(url,key){const r=await fetch(`${url}/rest/v1/price_items?select=*&order=sort_order.asc,id.asc`,{headers:sbHeaders(key)});if(!r.ok){if(r.status===404||r.status===42)return[];return[];}try{return await r.json();}catch{return[];}}
+async function sbUpsertPriceItem(url,key,item){const{id,...data}=item;if(id){const r=await fetch(`${url}/rest/v1/price_items?id=eq.${id}`,{method:"PATCH",headers:sbHeaders(key),body:JSON.stringify(data)});if(!r.ok)throw new Error("更新失敗");return(await r.json())[0];}else{const r=await fetch(`${url}/rest/v1/price_items`,{method:"POST",headers:sbHeaders(key),body:JSON.stringify(data)});if(!r.ok)throw new Error("追加失敗");return(await r.json())[0];}}
+async function sbDeletePriceItem(url,key,id){const r=await fetch(`${url}/rest/v1/price_items?id=eq.${id}`,{method:"DELETE",headers:sbHeaders(key,{"Prefer":"return=minimal"})});if(!r.ok)throw new Error("削除失敗");}
+
 function HouseIllust({style}){
   const si=STYLES_DEF[style]||STYLES_DEF["ナチュラル"];
   if(style==="ホテルライク")return(<svg viewBox="0 0 280 180" fill="none" style={{width:"100%",height:"100%"}}><rect width="280" height="180" fill={si.light}/><rect x="30" y="40" width="220" height="108" fill="#e8e4de"/><rect x="30" y="40" width="220" height="6" fill="#2a2218"/><rect x="55" y="56" width="70" height="50" fill="#c8c0b0" opacity="0.7"/><rect x="140" y="56" width="70" height="50" fill="#c8c0b0" opacity="0.7"/><rect x="120" y="86" width="22" height="62" fill="#2a2218"/></svg>);
@@ -197,6 +202,13 @@ function FeatureFilter({selected,onChange}){
 
 // ライトボックス
 function Lightbox({images,idx,onClose,onPrev,onNext}){
+  // price_items ロード
+  useEffect(()=>{
+    if(config&&!priceLoaded){
+      sbGetPriceItems(config.url,config.key).then(items=>{setPriceItems(items);setPriceLoaded(true);}).catch(()=>setPriceLoaded(true));
+    }
+  },[config,priceLoaded]);
+
   useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();if(e.key==="ArrowLeft")onPrev();if(e.key==="ArrowRight")onNext();};window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);},[]);
   return(
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.9)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -239,7 +251,7 @@ function PdfSelectModal({onClose, onGenerate}) {
   );
 }
 
-function PdfPrintModal({c, customerName, similarCases, onClose}) {
+function PdfPrintModal({c, customerName, similarCases, onClose, priceItemsForPdf=[]}) {
   // ── v0デザイントークン（globals.cssから忠実に変換）──────────
   // oklch(0.98 0.005 250)=背景, oklch(0.30 0.08 250)=primary(navy)
   const V = {
@@ -473,37 +485,62 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
 
   // ── P4: 見積り + フッター ─────────────────────────────────
   function p4Html() {
-    const honTai = midMan>0?Math.round(midMan*0.78):0;
-    const futai  = midMan>0?Math.round(midMan*0.09):0;
-    const shohi  = midMan>0?Math.round(midMan*0.07):0;
-    const option = Math.round((Number(sp.solarKw||0)*30)+(Number(sp.batteryKwh||0)*15));
-    const total  = honTai+futai+shohi+option;
-    const rows = [
-      {label:"本体工事費",   note:"建物本体・標準設備含む",         val:honTai},
-      {label:"付帯工事費",   note:"外構・地盤改良・給排水等",       val:futai},
-      {label:"諸費用",       note:"登記・ローン諸費用・各種申請等", val:shohi},
-      {label:"オプション費", note:"太陽光・蓄電池・採用設備等",     val:option},
-    ];
-    const rowHtml = rows.map(r=>`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid ${V.border};">
+    // 金額管理データ優先、なければ予算から自動計算
+    function calcAmt(item){ return item.calc_type==="unit_price"?(Number(item.unit_price)||0)*(Number(item.quantity)||1):(Number(item.amount)||0); }
+    const clientItems = (priceItemsForPdf||[]).filter(p=>p.display_client);
+    const hasPriceData = clientItems.length>0;
+    const pdfTotal = hasPriceData ? clientItems.reduce((s,p)=>s+calcAmt(p),0) : (()=>{
+      const honTai=midMan>0?Math.round(midMan*0.78):0;
+      const futai=midMan>0?Math.round(midMan*0.09):0;
+      const shohi=midMan>0?Math.round(midMan*0.07):0;
+      const option=Math.round((Number(sp.solarKw||0)*30)+(Number(sp.batteryKwh||0)*15));
+      return honTai+futai+shohi+option;
+    })();
+
+    // 行HTML生成
+    let rowHtml = "";
+    if(hasPriceData) {
+      // カテゴリ別に集計
+      const cats=[...new Set(clientItems.map(p=>p.category))];
+      rowHtml = cats.map(cat=>{
+        const items=clientItems.filter(p=>p.category===cat);
+        const catTotal=items.reduce((s,p)=>s+calcAmt(p),0);
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid ${V.border};">
+          <p style="font-size:15px;font-weight:500;color:${V.fg};font-family:${SANS};">${cat}</p>
+          <p style="font-size:16px;font-weight:600;color:${V.fg};font-family:${SANS};">¥${catTotal.toLocaleString()}</p>
+        </div>`;
+      }).join('');
+    } else {
+      const honTai=midMan>0?Math.round(midMan*0.78):0;
+      const futai=midMan>0?Math.round(midMan*0.09):0;
+      const shohi=midMan>0?Math.round(midMan*0.07):0;
+      const option=Math.round((Number(sp.solarKw||0)*30)+(Number(sp.batteryKwh||0)*15));
+      rowHtml=[
+        {label:"本体工事費",note:"建物本体・標準設備含む",val:honTai},
+        {label:"付帯工事費",note:"外構・地盤改良・給排水等",val:futai},
+        {label:"諸費用",note:"登記・ローン諸費用・各種申請等",val:shohi},
+        {label:"オプション費",note:"太陽光・蓄電池・採用設備等",val:option},
+      ].map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid ${V.border};">
         <div>
           <p style="font-size:15px;font-weight:500;color:${V.fg};font-family:${SANS};">${r.label}</p>
           <p style="font-size:11px;color:${V.muted};margin-top:2px;font-family:${SANS};">${r.note}</p>
         </div>
-        <p style="font-size:16px;font-weight:500;color:${V.fg};font-family:${SANS};">${r.val>0?fmtYen(r.val):"—"}</p>
+        <p style="font-size:16px;font-weight:500;color:${V.fg};font-family:${SANS};">${r.val>0?"¥"+r.val.toLocaleString():"—"}</p>
       </div>`).join('');
+    }
+
     return `
 
     <section style="background:${V.card};padding:40px 40px 28px;">
-      ${secTitle("資金計画")}
-      <div style="border:1px solid ${V.border};border-radius:4px;overflow:hidden;background:${V.bg};">
+      ${secTitle("概算建築費")}
+      <div style="border:1px solid ${V.border};border-radius:6px;overflow:hidden;background:${V.bg};">
         <div>${rowHtml}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:22px 24px;background:${V.primary};">
-          <p style="font-size:16px;font-weight:500;color:white;font-family:${SANS};">合計金額</p>
-          <p style="font-size:26px;font-weight:700;color:white;font-family:${SANS};">${total>0?fmtYen(total):(c.budget||"—")}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:22px 28px;background:${V.primary};">
+          <p style="font-size:16px;font-weight:600;color:white;font-family:${SANS};">合計金額</p>
+          <p style="font-size:28px;font-weight:800;color:white;font-family:${SANS};">¥${pdfTotal>0?pdfTotal.toLocaleString():(c.budget||"—")}</p>
         </div>
       </div>
-      <p style="font-size:11px;color:${V.muted};margin-top:12px;font-family:${SANS};">※上記は概算金額です。詳細は別紙見積書をご確認ください。</p>
+      <p style="font-size:11px;color:${V.muted};margin-top:12px;font-family:${SANS};">※本価格は概算です。敷地条件・仕様選定・法規条件・施工条件により変動する場合があります。</p>
     </section>
     <!-- Footer -->
     <section style="background:${V.card};border-top:1px solid ${V.border};padding:32px 40px;">
@@ -532,7 +569,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   // ── 新ウィンドウ印刷 ──────────────────────────────────────
   function doPrint() {
     const isTwoStory = c.floors==="2階建て" || f2rooms.length>0;
-    const pages = [p1Html(),p2Html(),...(isTwoStory?[p2bHtml()]:[]),p3Html(),p4Html()];
+    const pages = [p1Html(),p2Html(),...(isTwoStory?[p2bHtml()]:[]),p3Html(),p4Html(priceItemsForPdf)];
     const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"/>
 <style>@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}</style>
 <style>
@@ -707,22 +744,34 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
         </div>
       </div>
     )},
-    {label:"P(n+1) 見積り+フッター",node:(
+    {label:"P(n+1) 概算建築費+フッター",node:(
       <div style={{width:"420mm",height:"297mm",background:V.card,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <div style={{background:V.card,padding:"28px 36px 24px",flex:1}}>
-          <SecTitle text="資金計画"/>
-          <div style={{border:`1px solid ${V.border}`,borderRadius:4,overflow:"hidden",background:V.bg}}>
-            {["本体工事費","付帯工事費","諸費用","オプション費"].map((label,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 22px",borderBottom:`1px solid ${V.border}`,background:V.bg}}>
-                <span style={{fontSize:15,fontWeight:500,color:V.fg}}>{label}</span>
-                <span style={{fontSize:15,color:V.fg}}>¥—</span>
-              </div>
-            ))}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 22px",background:V.primary}}>
-              <span style={{fontSize:16,color:"white",fontWeight:500}}>合計金額</span>
-              <span style={{fontSize:26,color:"white",fontWeight:700}}>{c.budget||"—"}</span>
-            </div>
+        <PhotoHDR/>
+        <div style={{background:V.card,padding:"28px 36px 20px",flex:1}}>
+          <SecTitle text="概算建築費"/>
+          <div style={{border:`1px solid ${V.border}`,borderRadius:6,overflow:"hidden",background:V.bg}}>
+            {(()=>{
+              function ca(item){return item.calc_type==="unit_price"?(Number(item.unit_price)||0)*(Number(item.quantity)||1):(Number(item.amount)||0);}
+              const ci=(priceItemsForPdf||[]).filter(p=>p.display_client);
+              const hasPD=ci.length>0;
+              const total=hasPD?ci.reduce((s,p)=>s+ca(p),0):0;
+              const rows=hasPD?[...new Set(ci.map(p=>p.category))].map(cat=>({label:cat,val:ci.filter(p=>p.category===cat).reduce((s,p)=>s+ca(p),0)}))
+                :[{label:"本体工事費",val:0},{label:"付帯工事費",val:0},{label:"諸費用",val:0}];
+              return(<>
+                {rows.map((r,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 22px",borderBottom:`1px solid ${V.border}`,background:V.bg}}>
+                    <span style={{fontSize:14,fontWeight:500,color:V.fg}}>{r.label}</span>
+                    <span style={{fontSize:14,fontWeight:600,color:V.fg}}>{r.val>0?"¥"+r.val.toLocaleString():"—"}</span>
+                  </div>
+                ))}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 22px",background:V.primary}}>
+                  <span style={{fontSize:15,color:"white",fontWeight:600}}>合計金額</span>
+                  <span style={{fontSize:24,color:"white",fontWeight:800}}>{total>0?"¥"+total.toLocaleString():(c.budget||"—")}</span>
+                </div>
+              </>);
+            })()}
           </div>
+          <p style={{fontSize:11,color:V.muted,marginTop:10}}>※本価格は概算です。敷地条件・仕様・法規条件により変動する場合があります。</p>
         </div>
         <div style={{background:V.card,borderTop:`1px solid ${V.border}`,padding:"24px 40px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -739,7 +788,6 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
       </div>
     )},
   ];
-
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(5,15,35,.90)",zIndex:600,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",padding:"20px 16px",fontFamily:SANS}}>
       <div style={{background:"white",borderRadius:10,padding:"16px 24px",width:"100%",maxWidth:1000,marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
@@ -771,11 +819,419 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
 }
 
 
+
+// ══════════════════════════════════════════════════════════
+// 金額管理コンポーネント
+// ══════════════════════════════════════════════════════════
+
+const PRICE_CATEGORIES = ["建物本体","付帯工事","外構","カーテン","エアコン","TVアンテナ","地盤改良工事","オプション","設計申請","その他"];
+const CALC_TYPES = [{v:"fixed",l:"固定金額"},{v:"unit_price",l:"数量×単価"},{v:"differential",l:"標準差額"},{v:"manual",l:"手入力"}];
+
+const EMPTY_PRICE_ITEM = {
+  category:"建物本体", name:"", calc_type:"fixed",
+  amount:0, unit_price:0, quantity:1,
+  display_client:true, display_internal:true,
+  sort_order:0, note:"", valid_from:"", valid_to:""
+};
+
+function PriceAdmin({config, priceItems, setPriceItems}) {
+  const [editItem, setEditItem] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+  const [delConfirm, setDelConfirm] = React.useState(null);
+  const inp = {padding:"7px 10px",border:"1px solid #d4cfc5",borderRadius:6,fontSize:13,width:"100%",boxSizing:"border-box"};
+  const sel = {...inp};
+
+  function openNew(cat) {
+    setEditItem({...EMPTY_PRICE_ITEM, category:cat||"建物本体", sort_order:priceItems.filter(p=>p.category===(cat||"建物本体")).length*10});
+  }
+  function openEdit(item) { setEditItem({...item}); }
+
+  async function save() {
+    if(!editItem.name.trim()){alert("項目名を入力してください");return;}
+    setSaving(true);
+    try {
+      const saved = await sbUpsertPriceItem(config.url,config.key,editItem);
+      if(editItem.id) {
+        setPriceItems(prev=>prev.map(p=>p.id===saved.id?saved:p));
+      } else {
+        setPriceItems(prev=>[...prev,saved]);
+      }
+      setEditItem(null);
+    } catch(e){alert("保存失敗: "+e.message);}
+    finally{setSaving(false);}
+  }
+
+  async function del(id) {
+    try{await sbDeletePriceItem(config.url,config.key,id);setPriceItems(prev=>prev.filter(p=>p.id!==id));setDelConfirm(null);}
+    catch(e){alert("削除失敗: "+e.message);}
+  }
+
+  // カテゴリ別に集計
+  const grouped = PRICE_CATEGORIES.reduce((acc,cat)=>{
+    const items = priceItems.filter(p=>p.category===cat);
+    if(items.length>0) acc[cat]=items;
+    return acc;
+  },{});
+  // 登録済みでないカテゴリも
+  const allCats = [...new Set([...PRICE_CATEGORIES,...priceItems.map(p=>p.category)])];
+
+  function calcAmount(item) {
+    if(item.calc_type==="unit_price") return (Number(item.unit_price)||0)*(Number(item.quantity)||1);
+    return Number(item.amount)||0;
+  }
+  const totalClient = priceItems.filter(p=>p.display_client).reduce((s,p)=>s+calcAmount(p),0);
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div>
+          <h2 style={{margin:"0 0 4px",fontSize:20}}>金額内訳の管理</h2>
+          <div style={{fontSize:13,color:"#8a7a6a"}}>お客様表示合計: <strong>¥{totalClient.toLocaleString()}</strong></div>
+        </div>
+        <button onClick={()=>openNew()} style={{padding:"9px 20px",background:"#1e3a5f",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>＋ 項目追加</button>
+      </div>
+
+      {/* Supabaseテーブル作成SQL案内 */}
+      {priceItems.length===0&&(
+        <div style={{background:"#f0f4ff",border:"1px solid #c0d0f0",borderRadius:8,padding:"14px 18px",marginBottom:20,fontSize:12,color:"#3a5a8a"}}>
+          <strong>📋 初回セットアップ</strong>: SupabaseのSQL Editorで以下を実行してください:<br/>
+          <code style={{display:"block",marginTop:8,padding:"8px",background:"white",borderRadius:4,fontSize:11,whiteSpace:"pre",overflowX:"auto"}}>
+{`CREATE TABLE price_items (
+  id BIGSERIAL PRIMARY KEY,
+  category TEXT NOT NULL DEFAULT '建物本体',
+  name TEXT NOT NULL,
+  calc_type TEXT DEFAULT 'fixed',
+  amount NUMERIC DEFAULT 0,
+  unit_price NUMERIC DEFAULT 0,
+  quantity NUMERIC DEFAULT 1,
+  display_client BOOLEAN DEFAULT true,
+  display_internal BOOLEAN DEFAULT true,
+  sort_order INT DEFAULT 0,
+  note TEXT DEFAULT '',
+  valid_from DATE,
+  valid_to DATE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE price_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all" ON price_items FOR ALL USING (true) WITH CHECK (true);`}
+          </code>
+        </div>
+      )}
+
+      {/* カテゴリ別リスト */}
+      {allCats.map(cat=>{
+        const items = priceItems.filter(p=>p.category===cat);
+        if(items.length===0&&!PRICE_CATEGORIES.includes(cat)) return null;
+        const catTotal = items.filter(p=>p.display_client).reduce((s,p)=>s+calcAmount(p),0);
+        return(
+          <div key={cat} style={{background:"white",borderRadius:10,border:"1px solid #e8e2d8",marginBottom:14,overflow:"hidden"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:"#f5f0e8",borderBottom:"1px solid #e8e2d8"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontWeight:700,fontSize:14}}>{cat}</span>
+                <span style={{fontSize:12,color:"#8a7a6a"}}>{items.length}項目</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                {catTotal>0&&<span style={{fontSize:13,fontWeight:700,color:"#1a1612"}}>¥{catTotal.toLocaleString()}</span>}
+                <button onClick={()=>openNew(cat)} style={{padding:"4px 12px",border:"1px solid #c9b89a",borderRadius:5,background:"white",cursor:"pointer",fontSize:12,color:"#6a5a4a"}}>＋ 追加</button>
+              </div>
+            </div>
+            {items.length===0?(
+              <div style={{padding:"12px 16px",fontSize:12,color:"#b0a090"}}>項目なし</div>
+            ):(
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:"#faf8f5"}}>
+                  {["項目名","計算方式","金額","お客様表示","社内表示","操作"].map(h=>(
+                    <th key={h} style={{padding:"7px 10px",textAlign:"left",color:"#8a7a6a",fontWeight:600,borderBottom:"1px solid #e8e2d8"}}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {items.sort((a,b)=>a.sort_order-b.sort_order).map(item=>(
+                    <tr key={item.id} style={{borderBottom:"1px solid #f0ebe0"}}>
+                      <td style={{padding:"8px 10px",fontWeight:500}}>{item.name}</td>
+                      <td style={{padding:"8px 10px",color:"#8a7a6a"}}>{CALC_TYPES.find(c=>c.v===item.calc_type)?.l||item.calc_type}</td>
+                      <td style={{padding:"8px 10px",fontWeight:600}}>¥{calcAmount(item).toLocaleString()}</td>
+                      <td style={{padding:"8px 10px",textAlign:"center"}}>
+                        <span style={{background:item.display_client?"#d4edda":"#f8d7da",color:item.display_client?"#155724":"#721c24",padding:"2px 8px",borderRadius:10,fontSize:11}}>
+                          {item.display_client?"表示":"非表示"}
+                        </span>
+                      </td>
+                      <td style={{padding:"8px 10px",textAlign:"center"}}>
+                        <span style={{background:item.display_internal?"#cce5ff":"#f8d7da",color:item.display_internal?"#004085":"#721c24",padding:"2px 8px",borderRadius:10,fontSize:11}}>
+                          {item.display_internal?"表示":"非表示"}
+                        </span>
+                      </td>
+                      <td style={{padding:"8px 10px"}}>
+                        <div style={{display:"flex",gap:5}}>
+                          <button onClick={()=>openEdit(item)} style={{padding:"3px 10px",border:"1px solid #c9b89a",borderRadius:4,background:"white",cursor:"pointer",fontSize:11}}>編集</button>
+                          <button onClick={()=>setDelConfirm(item.id)} style={{padding:"3px 8px",border:"1px solid #f5c6cb",borderRadius:4,background:"#fff5f5",color:"#c0392b",cursor:"pointer",fontSize:11}}>削除</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })}
+
+      {/* 編集モーダル */}
+      {editItem&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
+          <div style={{background:"white",borderRadius:12,padding:"28px 32px",width:540,maxHeight:"90vh",overflowY:"auto"}}>
+            <h3 style={{margin:"0 0 20px",fontSize:17}}>{editItem.id?"項目を編集":"新規項目を追加"}</h3>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>項目名 *</label>
+                <input value={editItem.name} onChange={e=>setEditItem(p=>({...p,name:e.target.value}))} style={inp} placeholder="例: 木造軸組工法　本体工事"/>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>カテゴリ</label>
+                <select value={editItem.category} onChange={e=>setEditItem(p=>({...p,category:e.target.value}))} style={sel}>
+                  {PRICE_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>計算方式</label>
+                <select value={editItem.calc_type} onChange={e=>setEditItem(p=>({...p,calc_type:e.target.value}))} style={sel}>
+                  {CALC_TYPES.map(c=><option key={c.v} value={c.v}>{c.l}</option>)}
+                </select>
+              </div>
+              {editItem.calc_type==="unit_price"?(
+                <>
+                  <div>
+                    <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>単価（円）</label>
+                    <input type="number" value={editItem.unit_price} onChange={e=>setEditItem(p=>({...p,unit_price:Number(e.target.value)}))} style={inp}/>
+                  </div>
+                  <div>
+                    <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>数量</label>
+                    <input type="number" value={editItem.quantity} onChange={e=>setEditItem(p=>({...p,quantity:Number(e.target.value)}))} style={inp}/>
+                  </div>
+                </>
+              ):(
+                <div style={{gridColumn:"1/-1"}}>
+                  <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>金額（円）</label>
+                  <input type="number" value={editItem.amount} onChange={e=>setEditItem(p=>({...p,amount:Number(e.target.value)}))} style={inp} placeholder="例: 25000000"/>
+                </div>
+              )}
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>表示順</label>
+                <input type="number" value={editItem.sort_order} onChange={e=>setEditItem(p=>({...p,sort_order:Number(e.target.value)}))} style={inp}/>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,justifyContent:"flex-end"}}>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
+                  <input type="checkbox" checked={editItem.display_client} onChange={e=>setEditItem(p=>({...p,display_client:e.target.checked}))}/>
+                  お客様に表示
+                </label>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
+                  <input type="checkbox" checked={editItem.display_internal} onChange={e=>setEditItem(p=>({...p,display_internal:e.target.checked}))}/>
+                  社内のみ表示
+                </label>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>有効開始日</label>
+                <input type="date" value={editItem.valid_from||""} onChange={e=>setEditItem(p=>({...p,valid_from:e.target.value}))} style={inp}/>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>有効終了日</label>
+                <input type="date" value={editItem.valid_to||""} onChange={e=>setEditItem(p=>({...p,valid_to:e.target.value}))} style={inp}/>
+              </div>
+              <div style={{gridColumn:"1/-1"}}>
+                <label style={{display:"block",fontSize:11,color:"#8a7a6a",marginBottom:4}}>備考</label>
+                <input value={editItem.note||""} onChange={e=>setEditItem(p=>({...p,note:e.target.value}))} style={inp} placeholder="社内メモ"/>
+              </div>
+            </div>
+            <div style={{padding:"10px 14px",background:"#f5f0e8",borderRadius:6,fontSize:13,marginBottom:16,color:"#6a5a4a"}}>
+              <strong>計算金額プレビュー:</strong> ¥{(editItem.calc_type==="unit_price"?(Number(editItem.unit_price)||0)*(Number(editItem.quantity)||1):(Number(editItem.amount)||0)).toLocaleString()}
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button onClick={()=>setEditItem(null)} style={{padding:"9px 20px",border:"1px solid #d4cfc5",borderRadius:7,background:"white",cursor:"pointer",fontSize:13}}>キャンセル</button>
+              <button onClick={save} disabled={saving} style={{padding:"9px 24px",background:"#1e3a5f",color:"white",border:"none",borderRadius:7,fontSize:14,fontWeight:700,cursor:saving?"not-allowed":"pointer"}}>
+                {saving?"保存中...":"保存"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 削除確認 */}
+      {delConfirm&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300}}>
+          <div style={{background:"white",borderRadius:12,padding:"28px 32px",textAlign:"center",maxWidth:300}}>
+            <div style={{fontSize:32,marginBottom:10}}>🗑️</div>
+            <h3 style={{margin:"0 0 8px"}}>削除しますか？</h3>
+            <p style={{color:"#6a5a4a",fontSize:13,margin:"0 0 20px"}}>この操作は取り消せません。</p>
+            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+              <button onClick={()=>setDelConfirm(null)} style={{padding:"8px 18px",border:"1px solid #d4cfc5",borderRadius:6,background:"white",cursor:"pointer"}}>キャンセル</button>
+              <button onClick={()=>del(delConfirm)} style={{padding:"8px 18px",background:"#c0392b",color:"white",border:"none",borderRadius:6,cursor:"pointer",fontWeight:700}}>削除する</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── お客様向け金額表示コンポーネント ─────────────────────────
+function PriceSection({priceItems, totalOverride}) {
+  const [expanded, setExpanded] = React.useState(false);
+  const [showLoan, setShowLoan] = React.useState(false);
+  const [loanRate, setLoanRate] = React.useState(1.5);
+  const [loanYears, setLoanYears] = React.useState(35);
+  const [downPay, setDownPay] = React.useState(0);
+
+  const V = {fg:"#252d3d",primary:"#1e3a5f",secondary:"#edf0f5",muted:"#5c6b7a",border:"#d0d8e4",card:"#ffffff"};
+  const SANS = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
+  const SERIF = "Georgia,'Noto Serif JP',serif";
+
+  function calcAmt(item){
+    if(item.calc_type==="unit_price") return (Number(item.unit_price)||0)*(Number(item.quantity)||1);
+    return Number(item.amount)||0;
+  }
+
+  const clientItems = priceItems.filter(p=>p.display_client);
+  const total = clientItems.reduce((s,p)=>s+calcAmt(p),0);
+
+  // カテゴリ別集計
+  const cats = [...new Set(clientItems.map(p=>p.category))];
+  const catTotals = cats.map(cat=>({
+    cat, total:clientItems.filter(p=>p.category===cat).reduce((s,p)=>s+calcAmt(p),0),
+    items:clientItems.filter(p=>p.category===cat)
+  })).filter(c=>c.total>0);
+
+  // ローン計算（元利均等）
+  const loanAmt = Math.max(0,(totalOverride||total)-downPay*10000);
+  const monthRate = loanRate/100/12;
+  const months = loanYears*12;
+  const monthlyPay = loanAmt>0&&monthRate>0
+    ? Math.round(loanAmt*(monthRate*Math.pow(1+monthRate,months))/(Math.pow(1+monthRate,months)-1))
+    : Math.round(loanAmt/months);
+
+  const displayTotal = totalOverride||total;
+
+  if(displayTotal===0&&priceItems.length===0) return null;
+
+  return(
+    <section style={{background:V.card,padding:"40px 32px",fontFamily:SANS}}>
+      <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:28}}>
+        <h3 style={{fontFamily:SERIF,fontSize:22,fontWeight:500,color:V.fg,margin:0,whiteSpace:"nowrap"}}>概算建築費</h3>
+        <div style={{flex:1,height:1,background:V.border}}/>
+      </div>
+
+      {/* メイン合計 */}
+      <div style={{background:V.primary,borderRadius:10,padding:"28px 32px",marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,.6)",letterSpacing:".1em",marginBottom:6}}>合計金額（税込概算）</div>
+          <div style={{fontSize:36,fontWeight:800,color:"white"}}>
+            ¥{displayTotal.toLocaleString()}
+          </div>
+          {displayTotal>0&&<div style={{fontSize:13,color:"rgba(255,255,255,.5)",marginTop:4}}>
+            約{Math.round(displayTotal/10000).toLocaleString()}万円
+          </div>}
+        </div>
+        {catTotals.length>0&&(
+          <button onClick={()=>setExpanded(!expanded)} style={{padding:"10px 20px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:7,color:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>
+            {expanded?"▲ 閉じる":"▼ 内訳を見る"}
+          </button>
+        )}
+      </div>
+
+      {/* カテゴリ大分類（常時表示） */}
+      <div style={{background:V.secondary,borderRadius:8,overflow:"hidden",marginBottom:16}}>
+        {catTotals.map((c,i)=>(
+          <div key={c.cat} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 20px",borderBottom:i<catTotals.length-1?`1px solid ${V.border}`:"none"}}>
+            <span style={{fontSize:15,fontWeight:500,color:V.fg}}>{c.cat}</span>
+            <span style={{fontSize:15,fontWeight:700,color:V.fg}}>¥{c.total.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* 詳細内訳（展開時） */}
+      {expanded&&catTotals.length>0&&(
+        <div style={{border:`1px solid ${V.border}`,borderRadius:8,overflow:"hidden",marginBottom:16}}>
+          {catTotals.map((c,ci)=>(
+            <div key={c.cat}>
+              <div style={{padding:"10px 18px",background:"#f8f9fa",borderBottom:`1px solid ${V.border}`,fontWeight:700,fontSize:13,color:V.primary}}>
+                {c.cat}
+              </div>
+              {c.items.map((item,ii)=>(
+                <div key={item.id||ii} style={{display:"flex",justifyContent:"space-between",padding:"11px 18px 11px 28px",borderBottom:`1px solid ${V.border}40`,background:V.card}}>
+                  <div>
+                    <div style={{fontSize:13,color:V.fg}}>{item.name}</div>
+                    {item.calc_type==="unit_price"&&<div style={{fontSize:11,color:V.muted}}>¥{Number(item.unit_price).toLocaleString()} × {item.quantity}</div>}
+                    {item.note&&<div style={{fontSize:11,color:V.muted}}>{item.note}</div>}
+                  </div>
+                  <span style={{fontSize:13,fontWeight:600,color:V.fg}}>¥{calcAmt(item).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"16px 18px",background:V.primary}}>
+            <span style={{fontSize:15,fontWeight:700,color:"white"}}>合計</span>
+            <span style={{fontSize:18,fontWeight:800,color:"white"}}>¥{displayTotal.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ローン試算 */}
+      <div style={{marginBottom:16}}>
+        <button onClick={()=>setShowLoan(!showLoan)} style={{padding:"7px 16px",border:`1px solid ${V.border}`,borderRadius:6,background:V.card,cursor:"pointer",fontSize:13,color:V.muted,display:"flex",alignItems:"center",gap:6}}>
+          🏦 {showLoan?"ローン試算を閉じる":"月々の返済目安を見る"}
+        </button>
+        {showLoan&&(
+          <div style={{marginTop:12,padding:"18px 20px",background:V.secondary,borderRadius:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+              <div>
+                <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>頭金（万円）</label>
+                <input type="number" value={downPay} onChange={e=>setDownPay(Number(e.target.value))} style={{width:"100%",padding:"6px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}} placeholder="0"/>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>金利（%）</label>
+                <input type="number" step="0.1" value={loanRate} onChange={e=>setLoanRate(Number(e.target.value))} style={{width:"100%",padding:"6px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}/>
+              </div>
+              <div>
+                <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>返済年数</label>
+                <select value={loanYears} onChange={e=>setLoanYears(Number(e.target.value))} style={{width:"100%",padding:"6px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}>
+                  {[10,15,20,25,30,35].map(y=><option key={y} value={y}>{y}年</option>)}
+                </select>
+              </div>
+            </div>
+            {loanAmt>0&&(
+              <div style={{background:V.primary,borderRadius:7,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginBottom:4}}>月々返済目安</div>
+                  <div style={{fontSize:28,fontWeight:800,color:"white"}}>¥{monthlyPay.toLocaleString()}<span style={{fontSize:14,fontWeight:400}}>/ 月</span></div>
+                </div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.5)",textAlign:"right"}}>
+                  借入: ¥{loanAmt.toLocaleString()}<br/>
+                  金利{loanRate}% · {loanYears}年
+                </div>
+              </div>
+            )}
+            <div style={{marginTop:10,fontSize:11,color:V.muted}}>※金利・借入条件・諸費用により実際の返済額は異なります</div>
+          </div>
+        )}
+      </div>
+
+      {/* 注意文言 */}
+      <div style={{padding:"12px 16px",background:"#fffbe6",border:"1px solid #ffe082",borderRadius:6,fontSize:12,color:"#7a6a3a"}}>
+        ※本価格は概算です。敷地条件・仕様選定・法規条件・施工条件により変動する場合があります。詳細はご相談ください。
+      </div>
+    </section>
+  );
+}
+
 export default function App(){
   const envConfig=SUPABASE_URL&&SUPABASE_KEY?{url:SUPABASE_URL,key:SUPABASE_KEY}:null;
   const [config,setConfig]=useState(envConfig);
   const [cases,setCases]=useState([]);const [loading,setLoading]=useState(false);const [loadErr,setLoadErr]=useState("");
   const [view,setView]=useState("gallery");const [selectedCase,setSelected]=useState(null);
+  const [priceItems,setPriceItems]=useState([]);
+  const [priceLoaded,setPriceLoaded]=useState(false);
+  const [priceFormOpen,setPriceFormOpen]=useState(false);
+  const [editingPrice,setEditingPrice]=useState(null);
+  const [loanRate,setLoanRate]=useState(1.5); // 金利%
+  const [loanYears,setLoanYears]=useState(35); // 返済年数
   const [favorites,setFavorites]=useState(new Set());
 
   // PDF プレゼン
@@ -1003,7 +1459,7 @@ export default function App(){
       <style>{`*{box-sizing:border-box}button,input,textarea,select{font-family:inherit}.card{transition:transform .2s,box-shadow .2s;cursor:pointer}.card:hover{transform:translateY(-3px);box-shadow:0 12px 36px rgba(0,0,0,.1)!important}@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.thumb-img{cursor:pointer;transition:opacity .15s}.thumb-img:hover{opacity:.8}.pdf-print-area{display:none}.pdf-page{page-break-after:always}`}</style>
 
       {pdfSelectModal&&<PdfSelectModal onClose={()=>{setPdfSelectModal(null);setPdfCustomerName("");}} onGenerate={name=>{setPdfModal({c:pdfSelectModal,customerName:name});setPdfSelectModal(null);}}/>}
-      {pdfModal&&<PdfPrintModal c={pdfModal.c} customerName={pdfModal.customerName} similarCases={cases.filter(x=>x._sbId!==pdfModal.c._sbId&&(x.layout===pdfModal.c.layout||x.style===pdfModal.c.style)).slice(0,3)} onClose={()=>setPdfModal(null)}/>}
+      {pdfModal&&<PdfPrintModal c={pdfModal.c} customerName={pdfModal.customerName} similarCases={cases.filter(x=>x._sbId!==pdfModal.c._sbId&&(x.layout===pdfModal.c.layout||x.style===pdfModal.c.style)).slice(0,3)} onClose={()=>setPdfModal(null)} priceItemsForPdf={priceItems}/>}
       {lightbox&&<Lightbox images={lightbox.images} idx={lightbox.idx} onClose={()=>setLightbox(null)} onPrev={()=>setLightbox(l=>({...l,idx:(l.idx-1+l.images.length)%l.images.length}))} onNext={()=>setLightbox(l=>({...l,idx:(l.idx+1)%l.images.length}))}/>}
 
       <header style={{background:"white",borderBottom:"1px solid #e8e2d8",position:"sticky",top:0,zIndex:100}}>
@@ -1038,10 +1494,24 @@ export default function App(){
       {/* ── ADMIN PANEL ── */}
       {view==="admin"&&adminUnlocked&&(
         <div style={{maxWidth:1100,margin:"0 auto",padding:"28px 28px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
-            <h2 style={{margin:0,fontSize:20}}>間取り事例の管理</h2>
-            <div style={{display:"flex",gap:8}}><button onClick={()=>fetchCases(config)} style={{padding:"7px 14px",border:"1px solid #c9b89a",borderRadius:7,background:"white",cursor:"pointer",fontSize:12}}>↺</button><button onClick={openNew} style={{padding:"9px 20px",background:"#c9a96e",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>＋ 新規追加</button></div>
-          </div>
+          {/* タブ */}
+          {(()=>{
+            const [adminTab,setAdminTab]=React.useState("cases");
+            return(<>
+            <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:"2px solid #e8e2d8"}}>
+              {[{k:"cases",l:"🏠 事例一覧"},{k:"price",l:"💴 金額管理"}].map(t=>(
+                <button key={t.k} onClick={()=>setAdminTab(t.k)} style={{padding:"10px 24px",border:"none",background:"transparent",cursor:"pointer",fontSize:14,fontWeight:adminTab===t.k?700:400,color:adminTab===t.k?"#1a1612":"#8a7a6a",borderBottom:adminTab===t.k?"3px solid #c9a96e":"3px solid transparent",marginBottom:-2}}>
+                  {t.l}
+                </button>
+              ))}
+            </div>
+
+            {/* 事例一覧タブ */}
+            {adminTab==="cases"&&(<>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+              <h2 style={{margin:0,fontSize:20}}>間取り事例の管理</h2>
+              <div style={{display:"flex",gap:8}}><button onClick={()=>fetchCases(config)} style={{padding:"7px 14px",border:"1px solid #c9b89a",borderRadius:7,background:"white",cursor:"pointer",fontSize:12}}>↺</button><button onClick={openNew} style={{padding:"9px 20px",background:"#c9a96e",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>＋ 新規追加</button></div>
+            </div>
           {cases.length===0&&!loading&&<div style={{textAlign:"center",padding:"60px",color:"#8a7a6a"}}><div style={{fontSize:40,opacity:.3,marginBottom:10}}>🏠</div><div>事例がまだありません</div></div>}
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:18}}>
             {cases.map(c=>{const csi=STYLES_DEF[c.style]||STYLES_DEF["ナチュラル"];return(
@@ -1056,6 +1526,12 @@ export default function App(){
             );})}
           </div>
           {deleteConfirm&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}><div style={{background:"white",borderRadius:12,padding:"32px 36px",textAlign:"center",maxWidth:320,width:"90%"}}><div style={{fontSize:36,marginBottom:12}}>🗑️</div><h3 style={{margin:"0 0 6px"}}>削除しますか？</h3><p style={{color:"#6a5a4a",fontSize:13,margin:"0 0 20px"}}>データも削除されます。</p><div style={{display:"flex",gap:10,justifyContent:"center"}}><button onClick={()=>setDeleteConfirm(null)} style={{padding:"9px 20px",border:"1px solid #d4cfc5",borderRadius:7,background:"white",cursor:"pointer"}}>キャンセル</button><button onClick={()=>handleDelete(deleteConfirm)} style={{padding:"9px 20px",background:"#c0392b",color:"white",border:"none",borderRadius:7,cursor:"pointer",fontWeight:700}}>削除する</button></div></div></div>}
+            </>)}
+
+            {/* 金額管理タブ */}
+            {adminTab==="price"&&(<PriceAdmin config={config} priceItems={priceItems} setPriceItems={setPriceItems}/>)}
+            </>);
+          })()}
         </div>
       )}
 
@@ -1641,26 +2117,12 @@ export default function App(){
                 </section>
               )}
 
-              {/* ── お見積り概算 ── */}
-              <section style={{background:V.card,padding:"40px 32px"}}>
-                <SecTitle text="お見積り概算"/>
-                <div style={{overflow:"hidden",borderRadius:4,border:`1px solid ${V.border}`,background:V.bg}}>
-                  {[{label:"本体工事費",note:"建物本体・標準設備含む",val:honTai},{label:"付帯工事費",note:"外構・地盤改良・給排水等",val:futai},{label:"諸費用",note:"登記・ローン諸費用・各種申請等",val:shohi},{label:"オプション費",note:"太陽光・蓄電池・採用設備等",val:option}].map((r,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 24px",borderBottom:`1px solid ${V.border}`,background:V.bg}}>
-                      <div>
-                        <p style={{fontSize:15,fontWeight:500,color:V.fg,margin:"0 0 2px"}}>{r.label}</p>
-                        <p style={{fontSize:12,color:V.muted,margin:0}}>{r.note}</p>
-                      </div>
-                      <p style={{fontSize:16,fontWeight:500,color:V.fg,margin:0}}>{r.val>0?fmtYen(r.val):"—"}</p>
-                    </div>
-                  ))}
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px",background:V.primary}}>
-                    <p style={{fontSize:16,fontWeight:500,color:"white",margin:0}}>合計金額</p>
-                    <p style={{fontSize:26,fontWeight:700,color:"white",margin:0}}>{total>0?fmtYen(total):(c.budget||"—")}</p>
-                  </div>
-                </div>
-                <p style={{fontSize:12,color:V.muted,marginTop:12}}>※上記は概算金額です。詳細は別紙見積書をご確認ください。</p>
-              </section>
+              {/* ── 概算建築費（金額管理データ優先・なければ予算から計算） ── */}
+              <PriceSection priceItems={(() => {
+                // casesに紐付いたpriceItemsがあれば使う（将来拡張）
+                // なければ全体の登録データを使用
+                return priceItems.filter(p=>p.display_client);
+              })()} totalOverride={total>0?total:0}/>
 
               {/* ── フッター ── */}
               <section style={{background:V.card,borderTop:`1px solid ${V.border}`,padding:"36px 32px"}}>
