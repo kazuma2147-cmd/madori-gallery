@@ -1406,7 +1406,6 @@ export default function App(){
   const [editingPrice,setEditingPrice]=useState(null);
   const [loanRate,setLoanRate]=useState(1.5);
   const [loanYears,setLoanYears]=useState(35);
-  const [adminTab,setAdminTab]=useState("cases");
   const [favorites,setFavorites]=useState(new Set());
 
   // PDF プレゼン
@@ -1669,22 +1668,10 @@ export default function App(){
       {/* ── ADMIN PANEL ── */}
       {view==="admin"&&adminUnlocked&&(
         <div style={{maxWidth:1100,margin:"0 auto",padding:"28px 28px"}}>
-          {/* タブ */}
-          <>
-            <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:"2px solid #e8e2d8"}}>
-              {[{k:"cases",l:"🏠 事例一覧"},{k:"price",l:"💴 金額管理"}].map(t=>(
-                <button key={t.k} onClick={()=>setAdminTab(t.k)} style={{padding:"10px 24px",border:"none",background:"transparent",cursor:"pointer",fontSize:14,fontWeight:adminTab===t.k?700:400,color:adminTab===t.k?"#1a1612":"#8a7a6a",borderBottom:adminTab===t.k?"3px solid #c9a96e":"3px solid transparent",marginBottom:-2}}>
-                  {t.l}
-                </button>
-              ))}
-            </div>
-
-            {/* 事例一覧タブ */}
-            {adminTab==="cases"&&(<>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
               <h2 style={{margin:0,fontSize:20}}>間取り事例の管理</h2>
               <div style={{display:"flex",gap:8}}><button onClick={()=>fetchCases(config)} style={{padding:"7px 14px",border:"1px solid #c9b89a",borderRadius:7,background:"white",cursor:"pointer",fontSize:12}}>↺</button><button onClick={openNew} style={{padding:"9px 20px",background:"#c9a96e",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>＋ 新規追加</button></div>
-            </div>
+          </div>
           {cases.length===0&&!loading&&<div style={{textAlign:"center",padding:"60px",color:"#8a7a6a"}}><div style={{fontSize:40,opacity:.3,marginBottom:10}}>🏠</div><div>事例がまだありません</div></div>}
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:18}}>
             {cases.map(c=>{const csi=STYLES_DEF[c.style]||STYLES_DEF["ナチュラル"];return(
@@ -1699,11 +1686,6 @@ export default function App(){
             );})}
           </div>
           {deleteConfirm&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}><div style={{background:"white",borderRadius:12,padding:"32px 36px",textAlign:"center",maxWidth:320,width:"90%"}}><div style={{fontSize:36,marginBottom:12}}>🗑️</div><h3 style={{margin:"0 0 6px"}}>削除しますか？</h3><p style={{color:"#6a5a4a",fontSize:13,margin:"0 0 20px"}}>データも削除されます。</p><div style={{display:"flex",gap:10,justifyContent:"center"}}><button onClick={()=>setDeleteConfirm(null)} style={{padding:"9px 20px",border:"1px solid #d4cfc5",borderRadius:7,background:"white",cursor:"pointer"}}>キャンセル</button><button onClick={()=>handleDelete(deleteConfirm)} style={{padding:"9px 20px",background:"#c0392b",color:"white",border:"none",borderRadius:7,cursor:"pointer",fontWeight:700}}>削除する</button></div></div></div>}
-            </>)}
-
-            {/* 金額管理タブ */}
-            {adminTab==="price"&&(<PriceAdmin config={config} priceItems={priceItems} setPriceItems={setPriceItems}/>)}
-          </>
         </div>
       )}
 
