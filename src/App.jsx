@@ -279,37 +279,26 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
 
   // ── 共通HTML部品 ─────────────────────────────────────────
   function hdr() {
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:18px 52px;background:${V.card};border-bottom:2px solid ${V.border};">
-      <div style="display:flex;align-items:center;gap:16px;">
-        <div style="width:52px;height:52px;background:${V.primary};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px;color:white;">🏠</div>
-        <div>
-          <p style="font-size:17px;font-weight:700;letter-spacing:.14em;color:${V.fg};font-family:${SANS};margin-bottom:3px;">Tatsuken Archi Design</p>
-          <p style="font-size:14px;color:${V.muted};font-family:${SANS};">Architectural Presentation</p>
+    // P1専用: 写真背景＋濃紺オーバーレイ
+    return `<div style="position:relative;height:68px;overflow:hidden;flex-shrink:0;">
+      ${mainImage?`<img src="${mainImage}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;"/>`:""}
+      <div style="position:absolute;inset:0;background:${V.primary}d0;"></div>
+      <div style="position:relative;height:100%;display:flex;justify-content:space-between;align-items:center;padding:0 44px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:36px;height:36px;background:white;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;">🏠</div>
+          <p style="font-size:16px;font-weight:700;letter-spacing:.12em;color:white;font-family:${SANS};margin:0;">Tatsuken Archi Design</p>
         </div>
-      </div>
-      <div style="text-align:right;font-family:${SANS};">
-        <p style="font-size:12px;color:${V.muted};margin-bottom:3px;">作成日</p>
-        <p style="font-size:16px;font-weight:600;color:${V.fg};">${today}</p>
+        <div style="text-align:right;font-family:${SANS};">
+          <p style="font-size:10px;color:rgba(255,255,255,.6);margin-bottom:2px;">作成日</p>
+          <p style="font-size:14px;font-weight:600;color:white;margin:0;">${today}</p>
+        </div>
       </div>
     </div>`;
   }
 
-  // ページタイトルヘッダー（P2以降）: 写真スタイル
+  // P2以降: ヘッダーなし（空）
   function pageHdr(title) {
-    return `<div style="position:relative;height:72px;overflow:hidden;flex-shrink:0;">
-      ${mainImage?`<img src="${mainImage}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;"/>`:``}
-      <div style="position:absolute;inset:0;background:${V.primary}cc;"></div>
-      <div style="position:relative;height:100%;display:flex;justify-content:space-between;align-items:center;padding:0 44px;">
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:36px;height:36px;background:white;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;">🏠</div>
-          <p style="font-size:15px;font-weight:700;letter-spacing:.12em;color:white;font-family:${SANS};">Tatsuken Archi Design</p>
-        </div>
-        <div style="text-align:right;">
-          <p style="font-size:11px;color:rgba(255,255,255,.6);font-family:${SANS};margin-bottom:2px;">作成日</p>
-          <p style="font-size:14px;font-weight:600;color:white;font-family:${SANS};">${today}</p>
-        </div>
-      </div>
-    </div>`;
+    return "";
   }
 
   function secTitle(text) {
@@ -392,8 +381,8 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   function p2Html() {
     const label1 = c.floors==="平屋"?"平屋":"1階";
     return `
-    ${pageHdr("間取りプラン")}
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 24px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 20px;gap:0;overflow:hidden;">
+      ${secTitle("間取りプラン")}
       ${floorCard(subImages[0],label1,f1rooms)}
     </div>`;
   }
@@ -401,8 +390,8 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   // ── P2b: 2F間取り（2階建てのみ追加） ─────────────────────
   function p2bHtml() {
     return `
-    ${pageHdr("間取りプラン（2階）")}
-    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 24px;gap:0;overflow:hidden;">
+    <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:20px 32px 20px;gap:0;overflow:hidden;">
+      ${secTitle("間取りプラン（2階）")}
       ${floorCard(subImages[1],"2階",f2rooms)}
     </div>`;
   }
@@ -466,7 +455,6 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
         <p style="font-size:15px;line-height:1.75;color:${V.fg};margin:0;padding-top:3px;font-family:${SANS};">${h}</p>
       </div>`).join('');
     return `
-    ${pageHdr("コンセプト・デザインハイライト・標準仕様")}
     <div style="flex:1;background:${V.card};display:flex;flex-direction:column;padding:22px 36px 22px;gap:0;overflow:hidden;">
       ${c.concept?`
       <div style="margin-bottom:16px;">
@@ -507,9 +495,9 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
         <p style="font-size:16px;font-weight:500;color:${V.fg};font-family:${SANS};">${r.val>0?fmtYen(r.val):"—"}</p>
       </div>`).join('');
     return `
-    ${pageHdr("資金計画")}
+
     <section style="background:${V.card};padding:40px 40px 28px;">
-      ${secTitle("お見積り概算")}
+      ${secTitle("資金計画")}
       <div style="border:1px solid ${V.border};border-radius:4px;overflow:hidden;background:${V.bg};">
         <div>${rowHtml}</div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:22px 24px;background:${V.primary};">
@@ -571,33 +559,25 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
   const PW = Math.round(420*3.7795*SCALE);
   const PH = Math.round(297*3.7795*SCALE);
 
-  // P1用ヘッダー（白背景）
+  // P1用ヘッダー（写真背景スタイル）
   const HDR = ()=>(
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 52px",background:V.card,borderBottom:`2px solid ${V.border}`}}>
-      <div style={{display:"flex",alignItems:"center",gap:16}}>
-        <div style={{width:52,height:52,background:V.primary,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,color:"white"}}>🏠</div>
-        <div>
-          <p style={{fontSize:17,fontWeight:700,letterSpacing:".14em",color:V.fg,marginBottom:3}}>Tatsuken Archi Design</p>
-          <p style={{fontSize:14,color:V.muted}}>Architectural Presentation</p>
-        </div>
-      </div>
-      <div style={{textAlign:"right"}}><p style={{fontSize:12,color:V.muted,marginBottom:3}}>作成日</p><p style={{fontSize:16,fontWeight:600,color:V.fg}}>{today}</p></div>
-    </div>
-  );
-  // P2以降用 写真スタイルヘッダー
-  const PhotoHDR = ()=>(
-    <div style={{position:"relative",height:72,overflow:"hidden",flexShrink:0}}>
+    <div style={{position:"relative",height:68,overflow:"hidden",flexShrink:0}}>
       {mainImage&&<img src={mainImage} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>}
-      <div style={{position:"absolute",inset:0,background:V.primary+"cc"}}/>
+      <div style={{position:"absolute",inset:0,background:V.primary+"d0"}}/>
       <div style={{position:"relative",height:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 44px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
           <div style={{width:36,height:36,background:"white",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🏠</div>
-          <p style={{fontSize:15,fontWeight:700,letterSpacing:".12em",color:"white"}}>Tatsuken Archi Design</p>
+          <p style={{fontSize:16,fontWeight:700,letterSpacing:".12em",color:"white",margin:0}}>Tatsuken Archi Design</p>
         </div>
-        <p style={{fontSize:14,fontWeight:600,color:"white"}}>{today}</p>
+        <div style={{textAlign:"right"}}>
+          <p style={{fontSize:10,color:"rgba(255,255,255,.6)",marginBottom:2}}>作成日</p>
+          <p style={{fontSize:14,fontWeight:600,color:"white",margin:0}}>{today}</p>
+        </div>
       </div>
     </div>
   );
+  // P2以降: ヘッダーなし
+  const PhotoHDR = ()=>null;
   const SecTitle = ({text})=>(
     <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24}}>
       <h3 style={{fontFamily:SERIF,fontSize:22,fontWeight:500,color:V.fg,whiteSpace:"nowrap"}}>{text}</h3>
@@ -657,8 +637,8 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
     )},
     {label:"P2 1F間取り",node:(
       <div style={{width:"420mm",height:"297mm",background:V.card,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <PhotoHDR/>
-        <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"28px 40px",overflow:"hidden"}}>
+        <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"20px 32px 20px",overflow:"hidden"}}>
+          <SecTitle text="間取りプラン"/>
           <div style={{background:V.secondary,borderRadius:6,overflow:"hidden",flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
             <div style={{flex:1,overflow:"hidden",background:"#c5d5e5",position:"relative",minHeight:0}}>
               {floorImages[0]?<img src={floorImages[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
@@ -673,8 +653,8 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
     )},
     ...(c.floors==="2階建て"?[{label:"P3 2F間取り",node:(
       <div style={{width:"420mm",height:"297mm",background:V.card,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <PhotoHDR/>
-        <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"28px 40px",overflow:"hidden"}}>
+        <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"20px 32px 20px",overflow:"hidden"}}>
+          <SecTitle text="間取りプラン（2階）"/>
           <div style={{background:V.secondary,borderRadius:6,overflow:"hidden",flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
             <div style={{flex:1,overflow:"hidden",background:"#c5d5e5",position:"relative",minHeight:0}}>
               {floorImages[1]?<img src={floorImages[1]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
@@ -689,18 +669,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
     )}]:[]),
     {label:"P(n) コンセプト+ハイライト+設備",node:(
       <div style={{width:"420mm",height:"297mm",background:V.bg,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        {/* 写真スタイルヘッダー */}
-        <div style={{position:"relative",height:72,overflow:"hidden",flexShrink:0}}>
-          {mainImage&&<img src={mainImage} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>}
-          <div style={{position:"absolute",inset:0,background:V.primary+"cc"}}/>
-          <div style={{position:"relative",height:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"0 44px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <div style={{width:36,height:36,background:"white",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🏠</div>
-              <p style={{fontSize:15,fontWeight:700,letterSpacing:".12em",color:"white"}}>Tatsuken Archi Design</p>
-            </div>
-            <p style={{fontSize:14,fontWeight:600,color:"white"}}>{today}</p>
-          </div>
-        </div>
+        {/* P2以降ヘッダーなし */}
         <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"20px 36px 20px",gap:0,overflow:"hidden"}}>
           {c.concept&&(
             <div style={{marginBottom:14}}>
@@ -740,9 +709,8 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
     )},
     {label:"P(n+1) 見積り+フッター",node:(
       <div style={{width:"420mm",height:"297mm",background:V.card,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <PhotoHDR/>
-        <div style={{background:V.card,padding:"36px 40px 24px",flex:1}}>
-          <SecTitle text="お見積り概算"/>
+        <div style={{background:V.card,padding:"28px 36px 24px",flex:1}}>
+          <SecTitle text="資金計画"/>
           <div style={{border:`1px solid ${V.border}`,borderRadius:4,overflow:"hidden",background:V.bg}}>
             {["本体工事費","付帯工事費","諸費用","オプション費"].map((label,i)=>(
               <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 22px",borderBottom:`1px solid ${V.border}`,background:V.bg}}>
