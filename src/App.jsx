@@ -322,9 +322,9 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
             <span style="font-size:12px;letter-spacing:.28em;color:${V.muted};text-transform:uppercase;font-family:${SANS};">Design Concept</span>
           </div>
         </div>
-        <!-- 右: 写真（青ボーダーで囲む、写真は内側に収める） -->
-        <div style="background:${V.primary};padding:20px 24px 10px 16px;display:flex;align-items:stretch;overflow:hidden;">
-          <div style="flex:1;overflow:hidden;border-radius:3px;">
+        <!-- 右: 写真 -->
+        <div style="overflow:hidden;background:${V.secondary};display:flex;align-items:center;justify-content:center;padding:28px 32px 28px 20px;">
+          <div style="width:100%;height:100%;overflow:hidden;border-radius:3px;">
             ${mainImage
               ?`<img src="${mainImage}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
               :`<div style="width:100%;height:100%;background:#c5d5e5;display:flex;align-items:center;justify-content:center;font-size:80px;">🏠</div>`}
@@ -568,8 +568,8 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
                 <span style={{fontSize:12,letterSpacing:".28em",color:V.muted}}>Design Concept</span>
               </div>
             </div>
-            <div style={{background:V.primary,padding:"20px 24px 10px 16px",display:"flex",alignItems:"stretch",overflow:"hidden"}}>
-              <div style={{flex:1,overflow:"hidden",borderRadius:3}}>
+            <div style={{overflow:"hidden",background:V.secondary,display:"flex",alignItems:"center",justifyContent:"center",padding:"28px 32px 28px 20px"}}>
+              <div style={{width:"100%",height:"100%",overflow:"hidden",borderRadius:3}}>
                 {mainImage?<img src={mainImage} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",background:"#c5d5e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
               </div>
             </div>
