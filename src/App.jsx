@@ -803,7 +803,7 @@ export default function App(){
   const [editingCase,setEditingCase]=useState(null);const [formData,setFormData]=useState(EMPTY_CASE);
   const [saveStatus,setSaveStatus]=useState("");const [saveErr,setSaveErr]=useState("");
   const [deleteConfirm,setDeleteConfirm]=useState(null);
-  const [imgUploading,setImgUploading]=useState(false);const [addImgUploading,setAddImgUploading]=useState(false);const [floorImgUploading,setFloorImgUploading]=useState(false);
+  const [imgUploading,setImgUploading]=useState(false);const [addImgUploading,setAddImgUploading]=useState(false);const [floorImgUploading,setFloorImgUploading]=useState(false);const [aiAnalyzing,setAiAnalyzing]=useState(false);const [aiFloor,setAiFloor]=useState(null);const [aiGenerating,setAiGenerating]=useState(false);
   const imgRef=useRef();const addImgRef=useRef();const floorImgRef=useRef();
   const [dragIdx,setDragIdx]=useState(null);
   const [imgDragIdx,setImgDragIdx]=useState(null);
@@ -861,6 +861,129 @@ export default function App(){
   async function handleMainImg(e){const file=e.target.files?.[0];if(!file)return;setImgUploading(true);try{const u=await sbUploadImage(config.url,config.key,file);setFormData(f=>({...f,image:u}));}catch(e){alert(e.message);}finally{setImgUploading(false);if(imgRef.current)imgRef.current.value="";}}
   async function handleAddImg(e){const file=e.target.files?.[0];if(!file)return;setAddImgUploading(true);try{const u=await sbUploadImage(config.url,config.key,file);setFormData(f=>({...f,images:[...(f.images||[]),u]}));}catch(e){alert(e.message);}finally{setAddImgUploading(false);if(addImgRef.current)addImgRef.current.value="";}}
   async function handleFloorImg(e){const file=e.target.files?.[0];if(!file)return;setFloorImgUploading(true);try{const u=await sbUploadImage(config.url,config.key,file);setFormData(f=>({...f,floorImages:[...(f.floorImages||[]),u]}));}catch(e){alert(e.message);}finally{setFloorImgUploading(false);if(floorImgRef.current)floorImgRef.current.value="";}}
+  async function analyzeFloorPlan(imgUrl, floorNum) {
+    setAiAnalyzing(true); setAiFloor(floorNum);
+    try {
+      // 画像をbase64に変換
+      const resp = await fetch(imgUrl);
+      const blob = await resp.blob();
+      const base64 = await new Promise(res=>{ const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.readAsDataURL(blob); });
+      const mediaType = blob.type||'image/jpeg';
+
+      const res = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1000,
+          messages:[{
+            role:'user',
+            content:[
+              {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+              {type:'text',text:`この間取り図を見て、各部屋の名前と帖数を抽出してください。
+必ずJSON配列のみを返してください（説明文なし）。
+形式: [{"name":"LDK","jyou":"19"},{"name":"洋室1","jyou":"6"},...]
+- nameは日本語の部屋名（LDK、洋室、主寝室、和室、玄関、洗面、浴室、トイレ、書斎、WICLなど）
+- jyouは帖数の数値文字列（不明な場合は""）
+- 廊下・収納等の小さなスペースは省略可
+- 帖数が書いてない場合は""とする`}
+            ]
+          }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text||'';
+      // JSONを抽出
+      const match = text.match(/\[.*\]/s);
+      if(!match) throw new Error('解析結果を取得できませんでした');
+      const rooms = JSON.parse(match[0]);
+      // 既存の対象階の部屋を削除して新規追加
+      setFormData(f=>{
+        const kept = (f.rooms||[]).filter(r=>r.floor!==floorNum);
+        const newRooms = rooms.map(r=>({name:r.name||'',floor:floorNum,jyou:r.jyou||''}));
+        return {...f, rooms:[...kept,...newRooms]};
+      });
+      alert(`${floorNum===1?'1階':'2階'}の部屋を${rooms.length}件自動入力しました。内容を確認してください。`);
+    } catch(e) {
+      alert('AI解析エラー: '+e.message);
+    } finally {
+      setAiAnalyzing(false); setAiFloor(null);
+    }
+  }
+
+  // AI全自動生成: 画像から タイトル・サブタイトル・コンセプト・ハイライトを生成
+  async function autoGenerateAll() {
+    const allImgs = [formData.image,...(formData.floorImages||[]),...(formData.images||[])].filter(Boolean);
+    if(allImgs.length===0){ alert('先にメイン画像・間取り画像・パース画像を登録してください'); return; }
+    setAiGenerating(true);
+    try {
+      // 画像を最大4枚base64変換（メイン+パース優先）
+      const targets = [formData.image,...(formData.images||[])].filter(Boolean).slice(0,4);
+      const imgContents = await Promise.all(targets.map(async url=>{
+        try{
+          const r=await fetch(url);
+          const b=await r.blob();
+          const b64=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result.split(',')[1]);fr.readAsDataURL(b);});
+          return {type:'image',source:{type:'base64',media_type:b.type||'image/jpeg',data:b64}};
+        }catch(e){return null;}
+      }));
+      const validImgs = imgContents.filter(Boolean);
+
+      const styleInfo = `建物タイプ:${formData.buildType||''} スタイル:${formData.style||''} 間取り:${formData.layout||''} 階数:${formData.floors||''}`;
+      const roomInfo = (formData.rooms||[]).filter(r=>r.name).map(r=>`${r.name}${r.jyou?r.jyou+'帖':''}`).join('・');
+
+      const res = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1500,
+          messages:[{
+            role:'user',
+            content:[
+              ...validImgs,
+              {type:'text',text:`あなたは住宅プレゼンのプロライターです。
+画像と以下の情報から、住宅のプレゼン資料用テキストを生成してください。
+
+建物情報: ${styleInfo}
+部屋構成: ${roomInfo||'不明'}
+
+以下のJSON形式のみで返してください（説明文一切不要）:
+{
+  "title": "キャッチーで詩的な住宅タイトル（15文字以内・漢字ひらがな混じり）",
+  "subtitle": "暮らしの魅力を伝えるサブタイトル（30文字以内）",
+  "concept": "この家のコンセプトや設計の想いを3〜5文で（200文字程度・です・ます調）",
+  "highlights": [
+    "設計・空間の特徴1（20文字以内）",
+    "設計・空間の特徴2",
+    "設計・空間の特徴3",
+    "設計・空間の特徴4",
+    "設計・空間の特徴5"
+  ]
+}`}
+            ]
+          }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text||'';
+      const match = text.match(/\{[\s\S]*\}/);
+      if(!match) throw new Error('生成結果を取得できませんでした');
+      const result = JSON.parse(match[0]);
+      setFormData(f=>({
+        ...f,
+        title: result.title||f.title,
+        subtitle: result.subtitle||f.subtitle,
+        concept: result.concept||f.concept,
+        highlights: result.highlights?.length>0 ? result.highlights : f.highlights,
+      }));
+      alert('タイトル・サブタイトル・コンセプト・ハイライトを生成しました！内容を確認して必要に応じて修正してください。');
+    } catch(e) {
+      alert('AI生成エラー: '+e.message);
+    } finally {
+      setAiGenerating(false);
+    }
+  }
 
   // ドラッグ＆ドロップ（部屋）
   function onDragStart(i){setDragIdx(i);}
@@ -960,20 +1083,33 @@ export default function App(){
 
             {/* 間取り画像 */}
             <Sec title="📐 間取り画像（平屋・1F・2F）">
-              <div style={{fontSize:11,color:"#a89a8a",marginBottom:8}}>間取り図を登録してください。☰ でドラッグ並び替え可能</div>
+              <div style={{fontSize:11,color:"#a89a8a",marginBottom:8}}>間取り図を登録後、🤖 ボタンでAIが部屋名・帖数を自動入力します</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:10}}>
-                {(formData.floorImages||[]).map((img,i)=>(
-                  <div key={i} style={{position:"relative",width:120,height:84,borderRadius:7,overflow:"hidden",border:"2px solid #b8d4e8",flexShrink:0}}>
-                    <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                    <div style={{position:"absolute",bottom:2,left:4,color:"white",fontSize:10,background:"rgba(30,58,95,.7)",padding:"1px 5px",borderRadius:3}}>{i===0?(formData.floors==="平屋"?"平屋":"1F"):"2F"}</div>
-                    <button onClick={()=>setFormData(f=>({...f,floorImages:f.floorImages.filter((_,j)=>j!==i)}))} style={{position:"absolute",top:3,right:3,background:"rgba(192,57,43,.85)",border:"none",borderRadius:"50%",width:18,height:18,color:"white",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-                  </div>
-                ))}
+                {(formData.floorImages||[]).map((img,i)=>{
+                  const floorNum = i===0?1:2;
+                  const floorLabel = i===0?(formData.floors==="平屋"?"平屋":"1F"):"2F";
+                  const isAnalyzing = aiAnalyzing&&aiFloor===floorNum;
+                  return(
+                    <div key={i} style={{display:"flex",flexDirection:"column",gap:5,flexShrink:0}}>
+                      <div style={{position:"relative",width:120,height:84,borderRadius:7,overflow:"hidden",border:"2px solid #b8d4e8"}}>
+                        <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                        <div style={{position:"absolute",bottom:2,left:4,color:"white",fontSize:10,background:"rgba(30,58,95,.7)",padding:"1px 5px",borderRadius:3}}>{floorLabel}</div>
+                        <button onClick={()=>setFormData(f=>({...f,floorImages:f.floorImages.filter((_,j)=>j!==i)}))} style={{position:"absolute",top:3,right:3,background:"rgba(192,57,43,.85)",border:"none",borderRadius:"50%",width:18,height:18,color:"white",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                      </div>
+                      <button onClick={()=>analyzeFloorPlan(img,floorNum)} disabled={isAnalyzing||aiAnalyzing}
+                        style={{width:120,padding:"5px 0",border:"none",borderRadius:6,background:isAnalyzing?"#a89a8a":"#1e3a5f",color:"white",fontSize:11,cursor:isAnalyzing||aiAnalyzing?"not-allowed":"pointer",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                        {isAnalyzing?<><span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>⏳</span>解析中...</>:<>🤖 AI自動入力</>}
+                      </button>
+                    </div>
+                  );
+                })}
                 {(formData.floorImages||[]).length<2&&(
-                  <label style={{width:120,height:84,borderRadius:7,border:"2px dashed #b8d4e8",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:floorImgUploading?"not-allowed":"pointer",background:"white",color:"#5a8aaa",fontSize:11,gap:3}}>
-                    {floorImgUploading?"...":<><span style={{fontSize:22}}>＋</span><span>間取り追加</span></>}
-                    <input ref={floorImgRef} type="file" accept="image/*" onChange={handleFloorImg} style={{display:"none"}} disabled={floorImgUploading}/>
-                  </label>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    <label style={{width:120,height:84,borderRadius:7,border:"2px dashed #b8d4e8",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:floorImgUploading?"not-allowed":"pointer",background:"white",color:"#5a8aaa",fontSize:11,gap:3}}>
+                      {floorImgUploading?"...":<><span style={{fontSize:22}}>＋</span><span>間取り追加</span></>}
+                      <input ref={floorImgRef} type="file" accept="image/*" onChange={handleFloorImg} style={{display:"none"}} disabled={floorImgUploading}/>
+                    </label>
+                  </div>
                 )}
               </div>
             </Sec>
@@ -1001,6 +1137,19 @@ export default function App(){
             <Sec title="▶ YouTubeリンク">
               <input value={formData.youtube||""} onChange={e=>setFormData(f=>({...f,youtube:e.target.value}))} style={inp} placeholder="https://www.youtube.com/watch?v=..."/>
             </Sec>
+
+            {/* AI一括生成 */}
+            <div style={{background:"linear-gradient(135deg,#1e3a5f,#2d5a8e)",borderRadius:10,padding:"18px 20px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <div style={{color:"white",fontWeight:700,fontSize:15,marginBottom:4}}>🤖 AI一括自動生成</div>
+                <div style={{color:"rgba(255,255,255,.7)",fontSize:12}}>画像からタイトル・サブタイトル・コンセプト・ハイライトを自動生成</div>
+                <div style={{color:"rgba(255,255,255,.55)",fontSize:11,marginTop:3}}>※ メイン画像またはパース画像を先に登録してください</div>
+              </div>
+              <button onClick={autoGenerateAll} disabled={aiGenerating}
+                style={{padding:"10px 20px",background:aiGenerating?"rgba(255,255,255,.2)":"rgba(255,255,255,.95)",color:aiGenerating?"rgba(255,255,255,.6)":"#1e3a5f",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:aiGenerating?"not-allowed":"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6,minWidth:140,justifyContent:"center"}}>
+                {aiGenerating?<><span>⏳</span>生成中...</>:<><span>✨</span>自動生成</>}
+              </button>
+            </div>
 
             {/* 基本情報 */}
             <Sec title="📋 基本情報">
