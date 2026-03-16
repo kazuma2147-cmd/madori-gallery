@@ -346,14 +346,6 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
           </div>
         </div>
       </div>
-      <!-- パース4枚 -->
-      ${subImages.slice(2,6).length>0?`
-      <div style="display:grid;grid-template-columns:repeat(${Math.min(subImages.slice(2,6).length,4)},1fr);gap:10px;margin-top:16px;">
-        ${subImages.slice(2,6).map(img=>`
-          <div style="border-radius:5px;overflow:hidden;aspect-ratio:4/3;background:#c5d5e5;">
-            <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>
-          </div>`).join('')}
-      </div>`:''}
     </div>`;
   }
 
@@ -601,16 +593,6 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
               </div>
             ))}
           </div>
-          {/* パース4枚 */}
-          {subImages.slice(2,6).length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(subImages.slice(2,6).length,4)},1fr)`,gap:10,flexShrink:0}}>
-              {subImages.slice(2,6).map((img,i)=>(
-                <div key={i} style={{borderRadius:5,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}}>
-                  <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     )},
