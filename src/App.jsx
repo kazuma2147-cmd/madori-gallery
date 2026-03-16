@@ -1240,7 +1240,7 @@ export default function App(){
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
                     <div style={{display:"flex",flexDirection:"column",justifyContent:"center",padding:"48px 24px 48px 0"}}>
                       <p style={{fontSize:13,letterSpacing:".2em",color:V.primary,textTransform:"uppercase",marginBottom:10,margin:"0 0 10px"}}>{c.buildType||""} {c.style}</p>
-                      <h2 style={{fontFamily:SERIF,fontSize:40,fontWeight:500,letterSpacing:"-.01em",color:V.fg,lineHeight:1.3,margin:"0 0 18px"}}>{c.title}</h2>
+                      <h2 style={{fontFamily:SERIF,fontSize:"clamp(20px,3vw,38px)",fontWeight:500,letterSpacing:"-.01em",color:V.fg,lineHeight:1.2,margin:"0 0 18px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.title}</h2>
                       <p style={{fontSize:16,lineHeight:1.75,color:V.muted,margin:"0 0 24px",whiteSpace:"pre-line"}}>{c.subtitle}</p>
                       <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24}}>
                         <div style={{width:48,height:1,background:V.primary}}/>
@@ -1248,12 +1248,11 @@ export default function App(){
                       </div>
                       <p style={{fontSize:15,lineHeight:2.0,color:V.fg,margin:0}}>{c.concept}</p>
                     </div>
-                    <div style={{aspectRatio:"4/3",overflow:"hidden",position:"relative"}}>
+                    <div style={{overflow:"hidden",position:"relative",display:"flex",alignItems:"center",justifyContent:"center",background:V.secondary}}>
                       {c.image
-                        ?<img src={c.image} alt={c.title} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                        ?<img src={c.image} alt={c.title} style={{width:"100%",height:"auto",maxHeight:"100%",objectFit:"contain",display:"block"}}/>
                         :<div style={{width:"100%",height:"100%",background:"#c5d5e5",display:"flex",alignItems:"center",justifyContent:"center"}}><HouseIllust style={c.style}/></div>
                       }
-                      <div style={{position:"absolute",inset:0,background:"linear-gradient(to left,transparent,rgba(237,240,245,.2))"}}/>
                     </div>
                   </div>
                 </div>
