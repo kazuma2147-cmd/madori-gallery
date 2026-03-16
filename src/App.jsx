@@ -322,12 +322,12 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
             <span style="font-size:12px;letter-spacing:.28em;color:${V.muted};text-transform:uppercase;font-family:${SANS};">Design Concept</span>
           </div>
         </div>
-        <!-- 右: 写真 -->
-        <div style="overflow:hidden;background:${V.secondary};display:flex;align-items:center;justify-content:center;padding:28px 32px 28px 20px;">
-          <div style="width:100%;height:100%;overflow:hidden;border-radius:3px;">
+        <!-- 右: 写真（全体表示） -->
+        <div style="overflow:hidden;background:${V.secondary};display:flex;align-items:center;justify-content:center;padding:20px 28px 20px 16px;">
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
             ${mainImage
-              ?`<img src="${mainImage}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
-              :`<div style="width:100%;height:100%;background:#c5d5e5;display:flex;align-items:center;justify-content:center;font-size:80px;">🏠</div>`}
+              ?`<img src="${mainImage}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;border-radius:3px;"/>`
+              :`<div style="width:100%;height:100%;background:#c5d5e5;display:flex;align-items:center;justify-content:center;font-size:80px;border-radius:3px;">🏠</div>`}
           </div>
         </div>
       </div>
@@ -568,9 +568,11 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
                 <span style={{fontSize:12,letterSpacing:".28em",color:V.muted}}>Design Concept</span>
               </div>
             </div>
-            <div style={{overflow:"hidden",background:V.secondary,display:"flex",alignItems:"center",justifyContent:"center",padding:"28px 32px 28px 20px"}}>
-              <div style={{width:"100%",height:"100%",overflow:"hidden",borderRadius:3}}>
-                {mainImage?<img src={mainImage} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",background:"#c5d5e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
+            <div style={{overflow:"hidden",background:V.secondary,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px 28px 20px 16px"}}>
+              <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {mainImage
+                  ?<img src={mainImage} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",display:"block",borderRadius:3}}/>
+                  :<div style={{width:"100%",height:"100%",background:"#c5d5e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80,borderRadius:3}}>🏠</div>}
               </div>
             </div>
           </div>
