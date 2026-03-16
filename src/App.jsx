@@ -68,7 +68,7 @@ const EMPTY_CASE = {
   budget:"3,000〜3,500万円", direction:"南", location:"", year:new Date().getFullYear(),
   structure:"木造軸組", concept:"", highlights:["","","",""],
   rooms:[{ name:"LDK", floor:1, jyou:"" }],
-  features:[], specs:{...EMPTY_SPECS}, image:"", images:[], youtube:"",
+  features:[], specs:{...EMPTY_SPECS}, image:"", images:[], floorImages:[], youtube:"",
 };
 
 function parseBudget(str) {
@@ -256,8 +256,10 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   const SERIF = "Georgia,'Noto Serif JP','Times New Roman',serif";
   const SANS  = "'Hiragino Kaku Gothic ProN','Meiryo','Yu Gothic',sans-serif";
 
-  const mainImage  = c.image||"";
-  const subImages  = (c.images||[]).filter(Boolean);
+  const mainImage   = c.image||"";
+  const floorImages = (c.floorImages||[]).filter(Boolean);  // 間取り画像
+  const parsImages  = (c.images||[]).filter(Boolean);       // パース・内観
+  const subImages   = floorImages; // 後方互換: floorCardで使用
   const f1rooms    = (c.rooms||[]).filter(r=>r.floor===1);
   const f2rooms    = (c.rooms||[]).filter(r=>r.floor===2);
   const today      = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
@@ -341,7 +343,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
         </div>
         <!-- 右: 写真2×2グリッド（最大4枚） -->
         <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;min-height:0;">
-          ${[mainImage,...subImages.slice(0,3)].filter(Boolean).slice(0,4).map(img=>`
+          ${[mainImage,...parsImages.slice(0,3)].filter(Boolean).slice(0,4).map(img=>`
             <div style="border-radius:5px;overflow:hidden;background:#c5d5e5;">
               <img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"/>
             </div>`).join('')}
@@ -389,7 +391,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
 
   // ── P3: インテリア + 設備 ─────────────────────────────────
   function p3Html() {
-    const iImgs   = subImages.slice(2,6);
+    const iImgs   = parsImages.slice(0,4);  // パース画像を使用
     const iLabels = ["リビング・ダイニング","キッチン","主寝室","バスルーム"];
     const imgCards = iImgs.map((img,i)=>`
       <div>
@@ -612,8 +614,8 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
           </div>
           {/* パース4枚 */}
           {subImages.slice(2,6).length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(subImages.slice(2,6).length,4)},1fr)`,gap:10,flexShrink:0}}>
-              {subImages.slice(2,6).map((img,i)=>(
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(parsImages.slice(0,4).length,4)},1fr)`,gap:10,flexShrink:0}}>
+              {parsImages.slice(0,3).filter(Boolean).map((img,i)=>(
                 <div key={i} style={{borderRadius:5,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}}>
                   <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                 </div>
@@ -629,7 +631,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
         <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"28px 40px",overflow:"hidden"}}>
           <div style={{background:V.secondary,borderRadius:6,overflow:"hidden",flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
             <div style={{flex:1,overflow:"hidden",background:"#c5d5e5",position:"relative",minHeight:0}}>
-              {subImages[0]?<img src={subImages[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
+              {floorImages[0]?<img src={floorImages[0]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
               <div style={{position:"absolute",bottom:14,left:14,background:V.primary,padding:"6px 18px",borderRadius:3}}><span style={{color:"white",fontSize:14,fontWeight:600}}>{c.floors==="平屋"?"平屋":"1階"}</span></div>
             </div>
             <div style={{padding:"20px 24px",background:V.secondary}}>
@@ -645,7 +647,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
         <div style={{flex:1,background:V.card,display:"flex",flexDirection:"column",padding:"28px 40px",overflow:"hidden"}}>
           <div style={{background:V.secondary,borderRadius:6,overflow:"hidden",flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
             <div style={{flex:1,overflow:"hidden",background:"#c5d5e5",position:"relative",minHeight:0}}>
-              {subImages[1]?<img src={subImages[1]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
+              {floorImages[1]?<img src={floorImages[1]} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>🏠</div>}
               <div style={{position:"absolute",bottom:14,left:14,background:V.primary,padding:"6px 18px",borderRadius:3}}><span style={{color:"white",fontSize:14,fontWeight:600}}>2階</span></div>
             </div>
             <div style={{padding:"20px 24px",background:V.secondary}}>
@@ -784,8 +786,8 @@ export default function App(){
   const [editingCase,setEditingCase]=useState(null);const [formData,setFormData]=useState(EMPTY_CASE);
   const [saveStatus,setSaveStatus]=useState("");const [saveErr,setSaveErr]=useState("");
   const [deleteConfirm,setDeleteConfirm]=useState(null);
-  const [imgUploading,setImgUploading]=useState(false);const [addImgUploading,setAddImgUploading]=useState(false);
-  const imgRef=useRef();const addImgRef=useRef();
+  const [imgUploading,setImgUploading]=useState(false);const [addImgUploading,setAddImgUploading]=useState(false);const [floorImgUploading,setFloorImgUploading]=useState(false);
+  const imgRef=useRef();const addImgRef=useRef();const floorImgRef=useRef();
   const [dragIdx,setDragIdx]=useState(null);
   const [imgDragIdx,setImgDragIdx]=useState(null);
 
@@ -823,7 +825,7 @@ export default function App(){
   const hasFilter=filterBuildType||filterStyles.length>0||filterLayouts.length>0||filterFloor||filterBudget||filterTsubo||filterFeatures.length>0;
 
   function openNew(){setEditingCase(null);setFormData({...EMPTY_CASE,highlights:["","","",""],rooms:[{name:"LDK",floor:1,jyou:""}],features:[],images:[],image:"",youtube:"",specs:{...EMPTY_SPECS}});setSaveErr("");setView("adminForm");}
-  function openEdit(c){setEditingCase(c._sbId);const d=JSON.parse(JSON.stringify({...EMPTY_CASE,...c,specs:{...EMPTY_SPECS,...(c.specs||{})}}));if(d.rooms&&d.rooms[0]&&d.rooms[0].area!==undefined&&d.rooms[0].jyou===undefined){d.rooms=d.rooms.map(r=>({...r,jyou:r.area||""}))}setFormData(d);setSaveErr("");setView("adminForm");}
+  function openEdit(c){setEditingCase(c._sbId);const d=JSON.parse(JSON.stringify({...EMPTY_CASE,...c,specs:{...EMPTY_SPECS,...(c.specs||{})}}));if(d.rooms&&d.rooms[0]&&d.rooms[0].area!==undefined&&d.rooms[0].jyou===undefined){d.rooms=d.rooms.map(r=>({...r,jyou:r.area||""}))}if(!d.floorImages||d.floorImages.length===0){d.floorImages=[];d.images=d.images||[];}setFormData(d);setSaveErr("");setView("adminForm");}
 
   async function handleSaveCase(){
     if(!formData.title){setSaveErr("タイトルを入力してください");return;}
@@ -841,6 +843,7 @@ export default function App(){
   }
   async function handleMainImg(e){const file=e.target.files?.[0];if(!file)return;setImgUploading(true);try{const u=await sbUploadImage(config.url,config.key,file);setFormData(f=>({...f,image:u}));}catch(e){alert(e.message);}finally{setImgUploading(false);if(imgRef.current)imgRef.current.value="";}}
   async function handleAddImg(e){const file=e.target.files?.[0];if(!file)return;setAddImgUploading(true);try{const u=await sbUploadImage(config.url,config.key,file);setFormData(f=>({...f,images:[...(f.images||[]),u]}));}catch(e){alert(e.message);}finally{setAddImgUploading(false);if(addImgRef.current)addImgRef.current.value="";}}
+  async function handleFloorImg(e){const file=e.target.files?.[0];if(!file)return;setFloorImgUploading(true);try{const u=await sbUploadImage(config.url,config.key,file);setFormData(f=>({...f,floorImages:[...(f.floorImages||[]),u]}));}catch(e){alert(e.message);}finally{setFloorImgUploading(false);if(floorImgRef.current)floorImgRef.current.value="";}}
 
   // ドラッグ＆ドロップ（部屋）
   function onDragStart(i){setDragIdx(i);}
@@ -938,8 +941,29 @@ export default function App(){
               </div>
             </Sec>
 
-            {/* 追加画像 */}
-            <Sec title="🖼 追加画像（間取り図・パース・内観など）">
+            {/* 間取り画像 */}
+            <Sec title="📐 間取り画像（平屋・1F・2F）">
+              <div style={{fontSize:11,color:"#a89a8a",marginBottom:8}}>間取り図を登録してください。☰ でドラッグ並び替え可能</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:10}}>
+                {(formData.floorImages||[]).map((img,i)=>(
+                  <div key={i} style={{position:"relative",width:120,height:84,borderRadius:7,overflow:"hidden",border:"2px solid #b8d4e8",flexShrink:0}}>
+                    <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    <div style={{position:"absolute",bottom:2,left:4,color:"white",fontSize:10,background:"rgba(30,58,95,.7)",padding:"1px 5px",borderRadius:3}}>{i===0?(formData.floors==="平屋"?"平屋":"1F"):"2F"}</div>
+                    <button onClick={()=>setFormData(f=>({...f,floorImages:f.floorImages.filter((_,j)=>j!==i)}))} style={{position:"absolute",top:3,right:3,background:"rgba(192,57,43,.85)",border:"none",borderRadius:"50%",width:18,height:18,color:"white",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                  </div>
+                ))}
+                {(formData.floorImages||[]).length<2&&(
+                  <label style={{width:120,height:84,borderRadius:7,border:"2px dashed #b8d4e8",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:floorImgUploading?"not-allowed":"pointer",background:"white",color:"#5a8aaa",fontSize:11,gap:3}}>
+                    {floorImgUploading?"...":<><span style={{fontSize:22}}>＋</span><span>間取り追加</span></>}
+                    <input ref={floorImgRef} type="file" accept="image/*" onChange={handleFloorImg} style={{display:"none"}} disabled={floorImgUploading}/>
+                  </label>
+                )}
+              </div>
+            </Sec>
+
+            {/* パース・内観画像 */}
+            <Sec title="🖼 パース・内観画像（外観・室内・パースなど）">
+              <div style={{fontSize:11,color:"#a89a8a",marginBottom:8}}>☰ でドラッグ並び替え可能</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:10}}>
                 {(formData.images||[]).map((img,i)=>(
                   <div key={i} draggable onDragStart={()=>onImgDragStart(i)} onDragOver={e=>onImgDragOver(e,i)} onDragEnd={onImgDragEnd}
@@ -1211,8 +1235,10 @@ export default function App(){
         const isFav=favorites.has(c._sbId);
         const f1=(c.rooms||[]).filter(r=>r.floor===1);
         const f2=(c.rooms||[]).filter(r=>r.floor===2);
-        const allImages=[c.image,...(c.images||[])].filter(Boolean);
-        const subImages=(c.images||[]).filter(Boolean);
+        const floorImages=(c.floorImages||[]).filter(Boolean);
+        const parsImages=(c.images||[]).filter(Boolean);
+        const subImages=floorImages; // 間取り画像（後方互換）
+        const allImages=[c.image,...parsImages].filter(Boolean);
         const sp=c.specs||{};
         let ytId=null;if(c.youtube){const m=c.youtube.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);if(m)ytId=m[1];}
 
@@ -1312,12 +1338,12 @@ export default function App(){
               </section>
 
               {/* ── 写真ギャラリー ── */}
-              {allImages.length>1&&(
+              {parsImages.length>0&&(
                 <section style={{background:V.secondary,padding:"40px 32px"}}>
                   <SecTitle text="フォトギャラリー"/>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
-                    {allImages.map((img,i)=>(
-                      <div key={i} onClick={()=>setLightbox({images:allImages,idx:i})} style={{borderRadius:4,overflow:"hidden",aspectRatio:"4/3",cursor:"pointer",background:"#c5d5e5",transition:"opacity .15s"}}
+                    {parsImages.map((img,i)=>(
+                      <div key={i} onClick={()=>setLightbox({images:parsImages,idx:i})} style={{borderRadius:4,overflow:"hidden",aspectRatio:"4/3",cursor:"pointer",background:"#c5d5e5",transition:"opacity .15s"}}
                         onMouseEnter={e=>e.currentTarget.style.opacity=".85"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
                         <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                       </div>
@@ -1360,7 +1386,7 @@ export default function App(){
                 <SecTitle text="間取りプラン"/>
                 {(()=>{
                   const maxImgs=c.floors==="平屋"?1:2;
-                  const floorImgs=subImages.slice(0,maxImgs);
+                  const floorImgs=floorImages.slice(0,maxImgs);
                   if(floorImgs.length>0) return(
                   <div style={{display:"grid",gridTemplateColumns:floorImgs.length===1?"1fr":"1fr 1fr",gap:20}}>
                     {floorImgs.map((img,i)=>{
@@ -1399,12 +1425,12 @@ export default function App(){
               </section>
 
               {/* ── 内外観イメージ ── */}
-              {allImages.slice(2,6).length>0&&(
+              {parsImages.slice(0,4).length>0&&(
                 <section style={{background:V.secondary,padding:"40px 32px"}}>
                   <SecTitle text="内外観イメージ"/>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:20}}>
-                    {allImages.slice(2,6).map((img,i)=>(
-                      <div key={i} style={{cursor:"pointer",borderRadius:4,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}} onClick={()=>setLightbox({images:allImages,idx:i+2})}>
+                    {parsImages.slice(0,4).map((img,i)=>(
+                      <div key={i} style={{cursor:"pointer",borderRadius:4,overflow:"hidden",aspectRatio:"4/3",background:"#c5d5e5"}} onClick={()=>setLightbox({images:parsImages,idx:i})}>
                         <img src={img} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                       </div>
                     ))}
