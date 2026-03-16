@@ -536,6 +536,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
     const isTwoStory = c.floors==="2階建て" || f2rooms.length>0;
     const pages = [p1Html(),p2Html(),...(isTwoStory?[p2bHtml()]:[]),p3Html(),p4Html()];
     const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"/>
+<style>@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}</style>
 <style>
   @page{size:A3 landscape;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -543,6 +544,7 @@ function PdfPrintModal({c, customerName, similarCases, onClose}) {
   .page{width:420mm;height:297mm;page-break-after:always;overflow:hidden;display:flex;flex-direction:column;background:white;}
   section{flex-shrink:0;}
   img{display:block;}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}
 </style></head><body>
 ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
 </body></html>`;
@@ -551,7 +553,7 @@ ${pages.map(p=>`<div class="page">${p}</div>`).join('\n')}
     win.document.open();
     win.document.write(html);
     win.document.close();
-    win.onload = ()=>{ setTimeout(()=>{ win.focus(); win.print(); }, 1200); };
+    win.onload = ()=>{ setTimeout(()=>{ win.focus(); win.print(); }, 1500); };
   }
 
   // ── JSXプレビュー ─────────────────────────────────────────
