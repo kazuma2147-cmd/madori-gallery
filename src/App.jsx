@@ -870,7 +870,7 @@ export default function App(){
       const base64 = await new Promise(res=>{ const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.readAsDataURL(blob); });
       const mediaType = blob.type||'image/jpeg';
 
-      const res = await fetch('https://api.anthropic.com/v1/messages',{
+      const res = await fetch('/api/analyze',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
@@ -932,7 +932,7 @@ export default function App(){
       const styleInfo = `建物タイプ:${formData.buildType||''} スタイル:${formData.style||''} 間取り:${formData.layout||''} 階数:${formData.floors||''}`;
       const roomInfo = (formData.rooms||[]).filter(r=>r.name).map(r=>`${r.name}${r.jyou?r.jyou+'帖':''}`).join('・');
 
-      const res = await fetch('https://api.anthropic.com/v1/messages',{
+      const res = await fetch('/api/analyze',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
