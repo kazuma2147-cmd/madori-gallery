@@ -1319,9 +1319,15 @@ function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
   const loanBase = Math.max(0, roundedUp - (Number(downPay)||0)*10000);
   const monthRate = loanRate/100/12;
   const months = loanYears*12;
-  const monthly = loanBase>0&&monthRate>0
-    ? Math.round(loanBase*(monthRate*Math.pow(1+monthRate,months))/(Math.pow(1+monthRate,months)-1))
-    : loanBase>0 ? Math.round(loanBase/months) : 0;
+  const [bonusTimes, setBonusTimes] = React.useState(2); // 年2回
+  const [bonusAmt,   setBonusAmt]   = React.useState(""); // 1回あたり手入力
+  // ボーナス分を除いた毎月元利均等
+  const bonusAnnual = (Number(bonusAmt)||0) * bonusTimes;
+  const bonusTotal = bonusAnnual * loanYears;
+  const loanBaseAdj = Math.max(0, loanBase - bonusTotal);
+  const monthly = loanBaseAdj>0&&monthRate>0
+    ? Math.round(loanBaseAdj*(monthRate*Math.pow(1+monthRate,months))/(Math.pow(1+monthRate,months)-1))
+    : loanBaseAdj>0 ? Math.round(loanBaseAdj/months) : 0;
 
   if(combined===0) return null;
 
@@ -1350,7 +1356,7 @@ function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
       {/* ローン試算 */}
       <div style={{background:V.secondary,borderRadius:8,padding:"18px 20px"}}>
         <div style={{fontSize:14,fontWeight:700,color:V.fg,marginBottom:14}}>🏦 月々の返済目安</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:10}}>
           <div>
             <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>頭金（万円）</label>
             <input type="text" inputMode="numeric" value={downPay}
@@ -1360,7 +1366,7 @@ function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
           </div>
           <div>
             <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>金利（%）</label>
-            <input type="number" step="0.1" value={loanRate}
+            <input type="number" step="0.001" value={loanRate}
               onChange={e=>setLoanRate(Number(e.target.value))}
               style={{width:"100%",padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}/>
           </div>
@@ -1368,7 +1374,24 @@ function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
             <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>返済年数</label>
             <select value={loanYears} onChange={e=>setLoanYears(Number(e.target.value))}
               style={{width:"100%",padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}>
-              {[10,15,20,25,30,35].map(y=><option key={y} value={y}>{y}年</option>)}
+              {[10,15,20,25,30,35,40,45,50].map(y=><option key={y} value={y}>{y}年</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div>
+            <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>ボーナス払い（1回あたり・円）</label>
+            <input type="text" inputMode="numeric" value={bonusAmt}
+              onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,"");setBonusAmt(v);}}
+              placeholder="例: 100000（0なら毎月のみ）"
+              style={{width:"100%",padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>ボーナス回数（年）</label>
+            <select value={bonusTimes} onChange={e=>setBonusTimes(Number(e.target.value))}
+              style={{width:"100%",padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}>
+              <option value={1}>年1回</option>
+              <option value={2}>年2回（夏・冬）</option>
             </select>
           </div>
         </div>
@@ -2552,10 +2575,13 @@ export default function App(){
                       return(
                         <div key={i} style={{overflow:"hidden",borderRadius:4,border:`1px solid ${V.border}`,background:V.card,display:"flex",flexDirection:"column"}}>
                           <div style={{position:"relative",overflow:"hidden",background:"#c5d5e5"}}>
-                            <img src={img} style={{width:"100%",height:"auto",display:"block",objectFit:"cover"}}/>
+                            <img src={img} style={{width:"100%",height:"auto",display:"block",objectFit:"cover",cursor:"zoom-in"}}
+                              onClick={()=>setLightbox({images:floorImgs.map(x=>x),idx:i})}/>
                             <div style={{position:"absolute",bottom:14,left:14,background:V.primary,padding:"5px 14px",borderRadius:2}}>
                               <span style={{color:"white",fontSize:13,fontWeight:500}}>{floorLabel}</span>
                             </div>
+                            <div style={{position:"absolute",top:10,right:10,background:"rgba(0,0,0,.45)",borderRadius:4,padding:"3px 7px",fontSize:11,color:"white",cursor:"pointer"}}
+                              onClick={()=>setLightbox({images:floorImgs,idx:i})}>🔍 拡大</div>
                           </div>
                           {roomsForFloor.length>0&&(
                             <div style={{padding:"16px 18px"}}>
