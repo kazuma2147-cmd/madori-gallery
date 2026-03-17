@@ -1345,14 +1345,14 @@ function LandPriceSection({landPrice='', onChange}) {
   );
 }
 
-function OCLoanCalc({basePriceTotal=0, otherTotal=0, landTotal=0}) {
+function OCLoanCalc({basePriceTotal=0, otherTotal=0, landPrice=0}) {
   const [loanRate,  setLoanRate]  = React.useState(1.5);
   const [loanYears, setLoanYears] = React.useState(35);
   const [downPay,   setDownPay]   = React.useState("");
   const V = OC_V;
   const SANS = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
 
-  const combined = basePriceTotal + landTotal + otherTotal;
+  const combined = basePriceTotal + landPrice + otherTotal;
   // 100万単位で切り上げ
   const roundedUp = combined>0 ? Math.ceil(combined/1000000)*1000000 : 0;
   const loanBase = Math.max(0, roundedUp - (Number(downPay)||0)*10000);
@@ -1378,10 +1378,10 @@ function OCLoanCalc({basePriceTotal=0, otherTotal=0, landTotal=0}) {
           <span style={{fontSize:13,color:V.muted}}>本体価格</span>
           <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{basePriceTotal.toLocaleString()}</span>
         </div>
-        {landTotal>0&&(
+        {landPrice>0&&(
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
             <span style={{fontSize:13,color:V.muted}}>土地代金</span>
-            <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{landTotal.toLocaleString()}</span>
+            <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{landPrice.toLocaleString()}</span>
           </div>
         )}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${V.border}`}}>
@@ -1497,12 +1497,12 @@ function OtherCosts({basePriceTotal=0, landPrice='', onLandPriceChange=null}) {
 
   const n = v => Number(v)||0;
   const futaiTotal  = gaiko+curtain+aircon+antenna+jiban+n(futaiOther);
-  const landTotal   = n(landPrice)+n(brokerAmt)+n(landTax)+n(fixedTax)+n(waterFee)+n(sewerFee)+stamp;
+  const landTotal   = n(brokerAmt)+n(landTax)+n(fixedTax)+n(waterFee)+n(sewerFee)+stamp; // 土地代金は除く（上の入力欄で管理）
   const regTotal    = regTransfer+regBuild+regMortgage+n(regOther);
   const bankTotal   = n(bankFee)+n(bankStamp)+n(guarantee)+n(tsunagi)+insurance+regTotal;
   const grandTotal  = futaiTotal+landTotal+bankTotal;
 
-  const tabs=[{k:"futai",l:"付帯工事"},{k:"land",l:"土地・諸費用"},{k:"bank",l:"銀行諸費用"}];
+  const tabs=[{k:"futai",l:"付帯工事"},{k:"land",l:"土地関連費用"},{k:"bank",l:"銀行諸費用"}];
   const stampOpts=[{v:0,l:"0円"},{v:200,l:"200円"},{v:500,l:"500円"},{v:1000,l:"1,000円"},
     {v:5000,l:"5,000円"},{v:10000,l:"10,000円"}];
   const regOpts=[{v:0,l:"0円（含まない）"},...[5,10,15,20,25,30,35,40,45,50].map(n=>({v:n*10000,l:`${n}万円`}))];
@@ -1567,9 +1567,7 @@ function OtherCosts({basePriceTotal=0, landPrice='', onLandPriceChange=null}) {
           {/* 土地・諸費用 */}
           {tab==="land"&&(
             <div>
-              <Row label="土地代金" amt={n(landPrice)}>
-                <Inp value={landPrice} onChange={v=>{if(onLandPriceChange)onLandPriceChange(v);}} placeholder="土地代金（円）（※上の土地代金欄と連動）"/>
-              </Row>
+
               <Row label="仲介手数料" amt={n(brokerAmt)}>
                 <Inp value={brokerAmt} onChange={setBrokerAmt} placeholder="手入力（円）"/>
               </Row>
@@ -1588,7 +1586,7 @@ function OtherCosts({basePriceTotal=0, landPrice='', onLandPriceChange=null}) {
               <Row label="契約印紙代" amt={stamp}>
                 <Sel value={stamp} onChange={setStamp} opts={stampOpts}/>
               </Row>
-              <SubTotal label="土地・諸費用　小計" total={landTotal}/>
+              <SubTotal label="土地関連費用（仲介・税金等）　小計" total={landTotal}/>
             </div>
           )}
 
@@ -1639,7 +1637,7 @@ function OtherCosts({basePriceTotal=0, landPrice='', onLandPriceChange=null}) {
           <div style={{marginTop:10,fontSize:11,color:V.muted}}>※上記はあくまで目安です。実際の費用は条件により異なります。</div>
 
           {/* 本体+諸費用 合計 → 借入額 → ローン試算 */}
-          <OCLoanCalc basePriceTotal={basePriceTotal} otherTotal={grandTotal} landTotal={n(landPrice)}/>
+          <OCLoanCalc basePriceTotal={basePriceTotal} otherTotal={grandTotal} landPrice={n(landPrice)}/>
         </>
       )}
     </section>
