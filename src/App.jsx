@@ -1345,14 +1345,14 @@ function LandPriceSection({landPrice='', onChange}) {
   );
 }
 
-function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
+function OCLoanCalc({basePriceTotal=0, otherTotal=0, landTotal=0}) {
   const [loanRate,  setLoanRate]  = React.useState(1.5);
   const [loanYears, setLoanYears] = React.useState(35);
   const [downPay,   setDownPay]   = React.useState("");
   const V = OC_V;
   const SANS = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
 
-  const combined = basePriceTotal + otherTotal;
+  const combined = basePriceTotal + landTotal + otherTotal;
   // 100万単位で切り上げ
   const roundedUp = combined>0 ? Math.ceil(combined/1000000)*1000000 : 0;
   const loanBase = Math.max(0, roundedUp - (Number(downPay)||0)*10000);
@@ -1374,12 +1374,18 @@ function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
     <div style={{marginTop:20,fontFamily:SANS}}>
       {/* 合計表示 */}
       <div style={{background:V.secondary,borderRadius:8,padding:"16px 20px",marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
           <span style={{fontSize:13,color:V.muted}}>本体価格</span>
           <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{basePriceTotal.toLocaleString()}</span>
         </div>
+        {landTotal>0&&(
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+            <span style={{fontSize:13,color:V.muted}}>土地代金</span>
+            <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{landTotal.toLocaleString()}</span>
+          </div>
+        )}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${V.border}`}}>
-          <span style={{fontSize:13,color:V.muted}}>その他費用</span>
+          <span style={{fontSize:13,color:V.muted}}>その他費用（諸経費）</span>
           <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{otherTotal.toLocaleString()}</span>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
@@ -1626,17 +1632,14 @@ function OtherCosts({basePriceTotal=0, landPrice='', onLandPriceChange=null}) {
           {/* 全体合計 */}
           <div style={{marginTop:20,padding:"20px 24px",background:V.primary,borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginBottom:4}}>その他費用　合計</div>
-              {basePriceTotal>0&&<div style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>
-                本体価格 ¥{basePriceTotal.toLocaleString()} 含む総額: ¥{(basePriceTotal+grandTotal).toLocaleString()}
-              </div>}
+              <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginBottom:4}}>その他費用（土地含む）　合計</div>
             </div>
             <div style={{fontSize:28,fontWeight:800,color:"white"}}>¥{grandTotal.toLocaleString()}</div>
           </div>
           <div style={{marginTop:10,fontSize:11,color:V.muted}}>※上記はあくまで目安です。実際の費用は条件により異なります。</div>
 
           {/* 本体+諸費用 合計 → 借入額 → ローン試算 */}
-          <OCLoanCalc basePriceTotal={basePriceTotal} otherTotal={grandTotal}/>
+          <OCLoanCalc basePriceTotal={basePriceTotal} otherTotal={grandTotal} landTotal={n(landPrice)}/>
         </>
       )}
     </section>
@@ -2767,7 +2770,7 @@ export default function App(){
                   {/* ── 土地代金 ── */}
                   <LandPriceSection landPrice={landPriceInput} onChange={setLandPriceInput}/>
                   {/* ── その他費用 ── */}
-                  <OtherCosts basePriceTotal={bpTotal+Number(landPriceInput||0)} landPrice={landPriceInput} onLandPriceChange={setLandPriceInput}/>
+                  <OtherCosts basePriceTotal={bpTotal} landPrice={landPriceInput} onLandPriceChange={setLandPriceInput}/>
                 </>);
               })()}
 
