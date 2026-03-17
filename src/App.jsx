@@ -1267,7 +1267,7 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
 // ══════════════════════════════════════════════════════════
 // その他費用計算コンポーネント
 // ══════════════════════════════════════════════════════════
-function OtherCosts({basePriceTotal=0, productName='', priceSection=null}) {
+function OtherCosts({basePriceTotal=0}) {
   const [open, setOpen] = React.useState(false);
   const [tab, setTab] = React.useState("futai");
 
@@ -1317,7 +1317,7 @@ function OtherCosts({basePriceTotal=0, productName='', priceSection=null}) {
     </select>);
   }
   function Inp({value,onChange,placeholder=""}){
-    return(<input type="number" value={value} onChange={e=>onChange(e.target.value)}
+    return(<input type="text" inputMode="numeric" value={value} onChange={e=>{const v=e.target.value.replace(/[^\d]/g,"");onChange(v);}}
       placeholder={placeholder}
       style={{padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,
         background:"white",width:"100%",boxSizing:"border-box"}}/>);
@@ -1351,11 +1351,8 @@ function OtherCosts({basePriceTotal=0, productName='', priceSection=null}) {
 
   return(
     <section style={{background:V.card,padding:"32px 32px",fontFamily:SANS,borderTop:`1px solid ${V.border}`}}>
-      {/* 概算建築費の内容（常時表示） */}
-      {priceSection}
-
       {/* その他費用ヘッダー */}
-      <div style={{marginTop:priceSection?24:0}}>
+      <div>
         <button onClick={()=>setOpen(!open)}
           style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",
             background:"none",border:"none",cursor:"pointer",padding:0,marginBottom:open?20:0}}>
@@ -1550,7 +1547,7 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
   if(displayTotal===0&&priceItems.length===0) return null;
 
   return(
-    <div style={{padding:"0 0 8px",fontFamily:SANS}}>
+    <section style={{background:V.card,padding:"40px 32px",fontFamily:SANS}}>
       <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:28}}>
         <h3 style={{fontFamily:SERIF,fontSize:22,fontWeight:500,color:V.fg,margin:0,whiteSpace:"nowrap"}}>概算建築費</h3>
         <div style={{flex:1,height:1,background:V.border}}/>
@@ -1689,7 +1686,7 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
       <div style={{padding:"12px 16px",background:"#fffbe6",border:"1px solid #ffe082",borderRadius:6,fontSize:12,color:"#7a6a3a"}}>
         ※本価格は概算です。敷地条件・仕様選定・法規条件・施工条件により変動する場合があります。詳細はご相談ください。
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -2651,26 +2648,23 @@ export default function App(){
                 </section>
               )}
 
-              {/* ── 概算建築費 + その他費用（統合） ── */}
+              {/* ── 概算建築費 ── */}
               {(()=>{
                 const casePI = priceItems.filter(p=>p.display_client&&String(p.case_id)===String(c._sbId));
                 const bpTotal = casePI.reduce((s,p)=>s+(p.calc_type==="unit_price"?(Number(p.unit_price)||0)*(Number(p.quantity)||1):(Number(p.amount)||0)),0);
-                return(
-                  <OtherCosts
-                    basePriceTotal={bpTotal}
-                    priceSection={
-                      <PriceSection
-                        priceItems={casePI}
-                        caseId={c._sbId}
-                        totalOverride={0}
-                        productName={c.productName||""}
-                        tsubo={c.tsubo}
-                        buildingArea={c.area?.building}
-                        totalArea={c.area?.total}
-                      />
-                    }
+                return(<>
+                  <PriceSection
+                    priceItems={casePI}
+                    caseId={c._sbId}
+                    totalOverride={0}
+                    productName={c.productName||""}
+                    tsubo={c.tsubo}
+                    buildingArea={c.area?.building}
+                    totalArea={c.area?.total}
                   />
-                );
+                  {/* ── その他費用 ── */}
+                  <OtherCosts basePriceTotal={bpTotal}/>
+                </>);
               })()}
 
               {/* ── フッター ── */}
