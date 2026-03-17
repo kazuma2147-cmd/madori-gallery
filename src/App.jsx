@@ -1267,6 +1267,45 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
 // ══════════════════════════════════════════════════════════
 // その他費用計算コンポーネント
 // ══════════════════════════════════════════════════════════
+// ── OtherCosts共通定数 ────────────────────────────────────
+const OC_V={fg:"#252d3d",primary:"#1e3a5f",secondary:"#edf0f5",muted:"#5c6b7a",border:"#d0d8e4",card:"#ffffff",bg:"#f5f7fa"};
+
+function OCSel({value,onChange,opts}){
+  return(<select value={value} onChange={e=>onChange(Number(e.target.value))}
+    style={{padding:"7px 10px",border:`1px solid ${OC_V.border}`,borderRadius:5,fontSize:13,background:"white",width:"100%"}}>
+    {opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+  </select>);
+}
+function OCInp({value,onChange,placeholder=""}){
+  return(<input type="text" inputMode="numeric" value={value}
+    onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,"");onChange(v);}}
+    placeholder={placeholder}
+    style={{padding:"7px 10px",border:`1px solid ${OC_V.border}`,borderRadius:5,fontSize:13,
+      background:"white",width:"100%",boxSizing:"border-box"}}/>);
+}
+function OCRow({label,amt,children}){
+  const nv=Number(amt)||0;
+  return(
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",
+      padding:"10px 0",borderBottom:`1px solid ${OC_V.border}50`,gap:12}}>
+      <div style={{fontSize:13,color:OC_V.fg,flex:"0 0 auto",maxWidth:"55%"}}>{label}</div>
+      <div style={{flex:"0 0 200px",minWidth:0}}>
+        {children}
+        {nv>0&&<div style={{fontSize:11,color:OC_V.muted,marginTop:3,textAlign:"right"}}>¥{nv.toLocaleString()}</div>}
+      </div>
+    </div>
+  );
+}
+function OCSubTotal({label,total}){
+  return(
+    <div style={{display:"flex",justifyContent:"space-between",padding:"12px 16px",
+      background:OC_V.primary+"18",borderRadius:6,marginTop:12}}>
+      <span style={{fontSize:13,fontWeight:700,color:OC_V.primary}}>{label}</span>
+      <span style={{fontSize:15,fontWeight:800,color:OC_V.primary}}>¥{total.toLocaleString()}</span>
+    </div>
+  );
+}
+
 function OtherCosts({basePriceTotal=0}) {
   const [open, setOpen] = React.useState(false);
   const [tab, setTab] = React.useState("futai");
@@ -1299,9 +1338,10 @@ function OtherCosts({basePriceTotal=0}) {
   const [regMortgage,setRegMortgage]= React.useState(150000);
   const [regOther,   setRegOther]   = React.useState("");
 
-  const V={fg:"#252d3d",primary:"#1e3a5f",secondary:"#edf0f5",muted:"#5c6b7a",border:"#d0d8e4",card:"#ffffff",bg:"#f5f7fa"};
+  const V=OC_V;
   const SANS="'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
   const SERIF="Georgia,'Noto Serif JP',serif";
+  const Sel=OCSel; const Inp=OCInp; const Row=OCRow; const SubTotal=OCSubTotal;
 
   const n = v => Number(v)||0;
   const futaiTotal  = gaiko+curtain+aircon+antenna+jiban+n(futaiOther);
@@ -1309,40 +1349,6 @@ function OtherCosts({basePriceTotal=0}) {
   const regTotal    = regTransfer+regBuild+regMortgage+n(regOther);
   const bankTotal   = n(bankFee)+n(bankStamp)+n(guarantee)+n(tsunagi)+insurance+regTotal;
   const grandTotal  = futaiTotal+landTotal+bankTotal;
-
-  function Sel({value,onChange,opts}){
-    return(<select value={value} onChange={e=>onChange(Number(e.target.value))}
-      style={{padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,background:"white",width:"100%"}}>
-      {opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
-    </select>);
-  }
-  function Inp({value,onChange,placeholder=""}){
-    return(<input type="text" inputMode="numeric" value={value} onChange={e=>{const v=e.target.value.replace(/[^\d]/g,"");onChange(v);}}
-      placeholder={placeholder}
-      style={{padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,
-        background:"white",width:"100%",boxSizing:"border-box"}}/>);
-  }
-  function Row({label,amt,children}){
-    return(
-      <div style={{display:"grid",gridTemplateColumns:"1fr 200px",gap:12,alignItems:"center",
-        padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
-        <div style={{fontSize:13,color:V.fg}}>{label}</div>
-        <div>
-          {children}
-          {n(amt)>0&&<div style={{fontSize:11,color:V.muted,marginTop:3,textAlign:"right"}}>¥{n(amt).toLocaleString()}</div>}
-        </div>
-      </div>
-    );
-  }
-  function SubTotal({label,total}){
-    return(
-      <div style={{display:"flex",justifyContent:"space-between",padding:"12px 16px",
-        background:V.primary+"18",borderRadius:6,marginTop:12}}>
-        <span style={{fontSize:13,fontWeight:700,color:V.primary}}>{label}</span>
-        <span style={{fontSize:15,fontWeight:800,color:V.primary}}>¥{total.toLocaleString()}</span>
-      </div>
-    );
-  }
 
   const tabs=[{k:"futai",l:"付帯工事"},{k:"land",l:"土地・諸費用"},{k:"bank",l:"銀行諸費用"}];
   const stampOpts=[{v:0,l:"0円"},{v:200,l:"200円"},{v:500,l:"500円"},{v:1000,l:"1,000円"},
@@ -1452,26 +1458,20 @@ function OtherCosts({basePriceTotal=0}) {
               <Row label="火災保険" amt={insurance}>
                 <Sel value={insurance} onChange={setInsurance} opts={[{v:0,l:"0万円（別途）"},...[5,10,15,20,25,30,35,40,45,50].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
               </Row>
-              <div style={{padding:"12px 0 6px",borderBottom:`1px solid ${V.border}50`}}>
-                <div style={{fontSize:13,fontWeight:600,color:V.fg,marginBottom:10}}>登記費用</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                  {[
-                    {label:"所有権移転登記",val:regTransfer,set:setRegTransfer},
-                    {label:"建物表示保存登記",val:regBuild,set:setRegBuild},
-                    {label:"抵当権設定登記",val:regMortgage,set:setRegMortgage},
-                  ].map(({label,val,set})=>(
-                    <div key={label}>
-                      <div style={{fontSize:11,color:V.muted,marginBottom:3}}>{label}</div>
-                      <Sel value={val} onChange={set} opts={regOpts}/>
-                      {val>0&&<div style={{fontSize:11,color:V.muted,marginTop:2}}>¥{val.toLocaleString()}</div>}
-                    </div>
-                  ))}
-                  <div>
-                    <div style={{fontSize:11,color:V.muted,marginBottom:3}}>その他</div>
-                    <Inp value={regOther} onChange={setRegOther} placeholder="直接入力（円）"/>
-                    {n(regOther)>0&&<div style={{fontSize:11,color:V.muted,marginTop:2}}>¥{n(regOther).toLocaleString()}</div>}
-                  </div>
-                </div>
+              <div style={{padding:"8px 0 4px",borderBottom:`1px solid ${V.border}50`}}>
+                <div style={{fontSize:13,fontWeight:600,color:V.fg,marginBottom:8}}>登記費用</div>
+                {[
+                  {label:"所有権移転登記",val:regTransfer,set:setRegTransfer},
+                  {label:"建物表示保存登記",val:regBuild,set:setRegBuild},
+                  {label:"抵当権設定登記",val:regMortgage,set:setRegMortgage},
+                ].map(({label,val,set})=>(
+                  <Row key={label} label={label} amt={val}>
+                    <Sel value={val} onChange={set} opts={regOpts}/>
+                  </Row>
+                ))}
+                <Row label="その他" amt={n(regOther)}>
+                  <Inp value={regOther} onChange={setRegOther} placeholder="直接入力（円）"/>
+                </Row>
               </div>
               <SubTotal label="銀行諸費用・登記費用　小計" total={bankTotal}/>
             </div>
