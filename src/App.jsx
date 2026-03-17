@@ -64,7 +64,7 @@ const EMPTY_SPECS = {
 };
 const EMPTY_CASE = {
   buildType:"注文住宅", style:"ナチュラル", layout:"3LDK", floors:"2階建て",
-  title:"", subtitle:"", area:{ land:"", building:"", total:"" }, tsubo:"", productName:"",
+  title:"", subtitle:"", area:{ land:"", floor1:"", floor2:"", total:"" }, tsubo:"", productName:"",
   budget:"3,000〜3,500万円", direction:"南", location:"", year:new Date().getFullYear(),
   structure:"木造軸組", concept:"", highlights:["","","",""],
   rooms:[{ name:"LDK", floor:1, jyou:"" }],
@@ -2219,11 +2219,41 @@ export default function App(){
 
             {/* 面積・坪数 */}
             <Sec title="📐 面積・坪数">
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:11}}>
-                {[["延床面積(㎡)","total"],["建築面積(㎡)","building"],["敷地面積(㎡)","land"]].map(([l,k])=>(
-                  <div key={k}><Lbl>{l}</Lbl><input type="number" value={formData.area?.[k]||""} onChange={e=>setFormData(f=>({...f,area:{...f.area,[k]:e.target.value}}))} style={inp}/></div>
-                ))}
-                <div><Lbl>坪数</Lbl><input type="number" value={formData.tsubo||""} onChange={e=>setFormData(f=>({...f,tsubo:e.target.value}))} style={inp} placeholder="35"/></div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:11,marginBottom:12}}>
+                <div>
+                  <Lbl>1階面積(㎡)</Lbl>
+                  <input type="number" step="0.01" value={formData.area?.floor1||""} onChange={e=>{
+                    const f1=e.target.value;
+                    const f2=formData.area?.floor2||"";
+                    const total=f1&&f2?(Number(f1)+Number(f2)).toFixed(2):f1?f1:f2?f2:"";
+                    const tsubo=total?(Number(total)/3.306).toFixed(1):"";
+                    setFormData(f=>({...f,area:{...f.area,floor1:f1,total},tsubo}));
+                  }} style={inp} placeholder="例: 60.66"/>
+                </div>
+                <div>
+                  <Lbl>2階面積(㎡)　{formData.floors==="平屋"?"（平屋は不要）":""}</Lbl>
+                  <input type="number" step="0.01" value={formData.area?.floor2||""} onChange={e=>{
+                    const f2=e.target.value;
+                    const f1=formData.area?.floor1||"";
+                    const total=f1&&f2?(Number(f1)+Number(f2)).toFixed(2):f1?f1:f2?f2:"";
+                    const tsubo=total?(Number(total)/3.306).toFixed(1):"";
+                    setFormData(f=>({...f,area:{...f.area,floor2:f2,total},tsubo}));
+                  }} style={{...inp,background:formData.floors==="平屋"?"#f5f0e8":"white"}} placeholder="例: 60.66" disabled={formData.floors==="平屋"}/>
+                </div>
+                <div>
+                  <Lbl>敷地面積(㎡)</Lbl>
+                  <input type="number" step="0.01" value={formData.area?.land||""} onChange={e=>setFormData(f=>({...f,area:{...f.area,land:e.target.value}}))} style={inp} placeholder="例: 200"/>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
+                <div style={{background:"#f5f0e8",borderRadius:7,padding:"10px 14px"}}>
+                  <div style={{fontSize:11,color:"#8a7a6a",marginBottom:3}}>延床面積（自動計算）</div>
+                  <div style={{fontSize:18,fontWeight:700,color:"#1a1612"}}>{formData.area?.total?`${formData.area.total}㎡`:"—"}</div>
+                </div>
+                <div style={{background:"#f5f0e8",borderRadius:7,padding:"10px 14px"}}>
+                  <div style={{fontSize:11,color:"#8a7a6a",marginBottom:3}}>坪数（自動計算）</div>
+                  <div style={{fontSize:18,fontWeight:700,color:"#1a1612"}}>{formData.tsubo?`${formData.tsubo}坪`:"—"}</div>
+                </div>
               </div>
             </Sec>
 
