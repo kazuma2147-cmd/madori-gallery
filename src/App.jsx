@@ -1310,6 +1310,8 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
   const buildingAreaNum = Number(buildingArea)||0;
   const buildingTsubo = buildingAreaNum>0 ? (buildingAreaNum/3.306).toFixed(1) : "";
 
+  // priceItemsが登録されていればそれを使う、なければtotalOverrideを使う
+  const displayTotal = total>0 ? total : 0;
   // ローン計算（元利均等）
   const loanAmt = Math.max(0,displayTotal-downPay*10000);
   const monthRate = loanRate/100/12;
@@ -1318,8 +1320,6 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
     ? Math.round(loanAmt*(monthRate*Math.pow(1+monthRate,months))/(Math.pow(1+monthRate,months)-1))
     : Math.round(loanAmt/months);
 
-  // priceItemsが登録されていればそれを使う、なければtotalOverrideを使う
-  const displayTotal = total>0 ? total : 0;
 
   if(displayTotal===0&&priceItems.length===0) return null;
 
