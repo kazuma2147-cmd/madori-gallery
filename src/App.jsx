@@ -1267,107 +1267,108 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
 // ══════════════════════════════════════════════════════════
 // その他費用計算コンポーネント
 // ══════════════════════════════════════════════════════════
-function OtherCosts({basePriceTotal=0}) {
+function OtherCosts({basePriceTotal=0, productName='', priceSection=null}) {
   const [open, setOpen] = React.useState(false);
   const [tab, setTab] = React.useState("futai");
 
-  // ── 付帯工事 ──
-  const [gaiko,    setGaiko]    = React.useState(0);
-  const [curtain,  setCurtain]  = React.useState(0);
-  const [aircon,   setAircon]   = React.useState(0);
-  const [antenna,  setAntenna]  = React.useState(100000);
-  const [jiban,    setJiban]    = React.useState(0);
-  const [futaiOther, setFutaiOther] = React.useState(0);
+  // ── 付帯工事 ── 初期値設定
+  const [gaiko,      setGaiko]      = React.useState(2000000);
+  const [curtain,    setCurtain]    = React.useState(300000);
+  const [aircon,     setAircon]     = React.useState(500000);
+  const [antenna,    setAntenna]    = React.useState(100000);
+  const [jiban,      setJiban]      = React.useState(800000);
+  const [futaiOther, setFutaiOther] = React.useState("");
 
   // ── 土地・諸費用 ──
-  const [landPrice,   setLandPrice]   = React.useState(0);
-  const [broker,      setBroker]      = React.useState("none"); // none/あり
-  const [landTax,     setLandTax]     = React.useState(0);
-  const [fixedTax,    setFixedTax]    = React.useState(0);
-  const [waterFee,    setWaterFee]    = React.useState(0);
-  const [sewerFee,    setSewerFee]    = React.useState(0);
-  const [stamp,       setStamp]       = React.useState(0);
-  const [regTransfer, setRegTransfer] = React.useState(150000);
-  const [regBuild,    setRegBuild]    = React.useState(200000);
-  const [regMortgage, setRegMortgage] = React.useState(150000);
-  const [regOther,    setRegOther]    = React.useState(0);
+  const [landPrice,  setLandPrice]  = React.useState("");
+  const [brokerAmt,  setBrokerAmt]  = React.useState(""); // 手入力
+  const [landTax,    setLandTax]    = React.useState("");
+  const [fixedTax,   setFixedTax]   = React.useState("");
+  const [waterFee,   setWaterFee]   = React.useState("");
+  const [sewerFee,   setSewerFee]   = React.useState("");
+  const [stamp,      setStamp]      = React.useState(0); // 選択
 
-  // ── 銀行諸費用 ──
-  const [loanAmt,     setLoanAmt]     = React.useState(0);
-  const [guarantee,   setGuarantee]   = React.useState(0); // 保証料 手入力
-  const [tsunagi,     setTsunagi]     = React.useState(300000);
-  const [insurance,   setInsurance]   = React.useState(0);
+  // ── 銀行諸費用 ── (登記費用もここへ)
+  const [bankFee,    setBankFee]    = React.useState("55000");
+  const [bankStamp,  setBankStamp]  = React.useState("20200");
+  const [guarantee,  setGuarantee]  = React.useState("800000");
+  const [tsunagi,    setTsunagi]    = React.useState("300000");
+  const [insurance,  setInsurance]  = React.useState(0);
+  const [regTransfer,setRegTransfer]= React.useState(150000);
+  const [regBuild,   setRegBuild]   = React.useState(200000);
+  const [regMortgage,setRegMortgage]= React.useState(150000);
+  const [regOther,   setRegOther]   = React.useState("");
 
-  const V = {fg:"#252d3d",primary:"#1e3a5f",secondary:"#edf0f5",muted:"#5c6b7a",border:"#d0d8e4",card:"#ffffff",bg:"#f5f7fa"};
-  const SANS = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
-  const SERIF = "Georgia,'Noto Serif JP',serif";
+  const V={fg:"#252d3d",primary:"#1e3a5f",secondary:"#edf0f5",muted:"#5c6b7a",border:"#d0d8e4",card:"#ffffff",bg:"#f5f7fa"};
+  const SANS="'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
+  const SERIF="Georgia,'Noto Serif JP',serif";
 
-  // 仲介手数料計算
-  const brokerFee = broker==="あり" && landPrice>0 ? Math.round(landPrice*0.03*1.1 + 60000*1.1) : 0;
+  const n = v => Number(v)||0;
+  const futaiTotal  = gaiko+curtain+aircon+antenna+jiban+n(futaiOther);
+  const landTotal   = n(landPrice)+n(brokerAmt)+n(landTax)+n(fixedTax)+n(waterFee)+n(sewerFee)+stamp;
+  const regTotal    = regTransfer+regBuild+regMortgage+n(regOther);
+  const bankTotal   = n(bankFee)+n(bankStamp)+n(guarantee)+n(tsunagi)+insurance+regTotal;
+  const grandTotal  = futaiTotal+landTotal+bankTotal;
 
-  // 付帯工事合計
-  const futaiTotal = gaiko+curtain+aircon+antenna+jiban+futaiOther;
-  // 土地・登記・諸費用合計
-  const landTotal = landPrice+brokerFee+landTax+fixedTax+waterFee+sewerFee+stamp+regTransfer+regBuild+regMortgage+regOther;
-  // 銀行諸費用合計
-  const bankFee = 55000+20200+Number(guarantee)+tsunagi+insurance;
-  const bankTotal = bankFee;
-
-  const grandTotal = futaiTotal+landTotal+bankTotal;
-
-  function Sel({value, onChange, opts}) {
-    return(
-      <select value={value} onChange={e=>onChange(Number(e.target.value))}
-        style={{padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,background:"white",width:"100%"}}>
-        {opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
-      </select>
-    );
+  function Sel({value,onChange,opts}){
+    return(<select value={value} onChange={e=>onChange(Number(e.target.value))}
+      style={{padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,background:"white",width:"100%"}}>
+      {opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+    </select>);
   }
-  function Inp({value, onChange, placeholder=""}) {
-    return(
-      <input type="number" value={value||""} onChange={e=>onChange(Number(e.target.value)||0)}
-        placeholder={placeholder}
-        style={{padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,background:"white",width:"100%",boxSizing:"border-box"}}/>
-    );
+  function Inp({value,onChange,placeholder=""}){
+    return(<input type="number" value={value} onChange={e=>onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,
+        background:"white",width:"100%",boxSizing:"border-box"}}/>);
   }
-  function Row({label, value, children}) {
+  function Row({label,amt,children}){
     return(
-      <div style={{display:"grid",gridTemplateColumns:"1fr 200px",gap:12,alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 200px",gap:12,alignItems:"center",
+        padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
         <div style={{fontSize:13,color:V.fg}}>{label}</div>
         <div>
           {children}
-          {value>0&&<div style={{fontSize:11,color:V.muted,marginTop:3,textAlign:"right"}}>¥{value.toLocaleString()}</div>}
+          {n(amt)>0&&<div style={{fontSize:11,color:V.muted,marginTop:3,textAlign:"right"}}>¥{n(amt).toLocaleString()}</div>}
         </div>
       </div>
     );
   }
-  function SubTotal({label, total}) {
+  function SubTotal({label,total}){
     return(
-      <div style={{display:"flex",justifyContent:"space-between",padding:"12px 16px",background:V.primary+"18",borderRadius:6,marginTop:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",padding:"12px 16px",
+        background:V.primary+"18",borderRadius:6,marginTop:12}}>
         <span style={{fontSize:13,fontWeight:700,color:V.primary}}>{label}</span>
         <span style={{fontSize:15,fontWeight:800,color:V.primary}}>¥{total.toLocaleString()}</span>
       </div>
     );
   }
 
-  const tabs = [{k:"futai",l:"付帯工事"},{k:"land",l:"土地・諸費用"},{k:"bank",l:"銀行諸費用"}];
+  const tabs=[{k:"futai",l:"付帯工事"},{k:"land",l:"土地・諸費用"},{k:"bank",l:"銀行諸費用"}];
+  const stampOpts=[{v:0,l:"0円"},{v:200,l:"200円"},{v:500,l:"500円"},{v:1000,l:"1,000円"},
+    {v:5000,l:"5,000円"},{v:10000,l:"10,000円"}];
+  const regOpts=[{v:0,l:"0円（含まない）"},...[5,10,15,20,25,30,35,40,45,50].map(n=>({v:n*10000,l:`${n}万円`}))];
 
   return(
     <section style={{background:V.card,padding:"32px 32px",fontFamily:SANS,borderTop:`1px solid ${V.border}`}}>
-      {/* ヘッダー */}
-      <button onClick={()=>setOpen(!open)}
-        style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",background:"none",border:"none",cursor:"pointer",padding:0,marginBottom:open?20:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:16}}>
-          <h3 style={{fontFamily:SERIF,fontSize:20,fontWeight:500,color:V.fg,margin:0}}>その他費用の目安</h3>
-          <div style={{height:1,width:60,background:V.border}}/>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          {grandTotal>0&&!open&&(
-            <span style={{fontSize:14,fontWeight:700,color:V.primary}}>合計 ¥{grandTotal.toLocaleString()}</span>
-          )}
-          <span style={{fontSize:20,color:V.muted}}>{open?"▲":"▼"}</span>
-        </div>
-      </button>
+      {/* 概算建築費の内容（常時表示） */}
+      {priceSection}
+
+      {/* その他費用ヘッダー */}
+      <div style={{marginTop:priceSection?24:0}}>
+        <button onClick={()=>setOpen(!open)}
+          style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",
+            background:"none",border:"none",cursor:"pointer",padding:0,marginBottom:open?20:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:16}}>
+            <h3 style={{fontFamily:SERIF,fontSize:20,fontWeight:500,color:V.fg,margin:0}}>その他費用の目安</h3>
+            <div style={{height:1,width:60,background:V.border}}/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            {grandTotal>0&&!open&&<span style={{fontSize:14,fontWeight:700,color:V.primary}}>合計 ¥{grandTotal.toLocaleString()}</span>}
+            <span style={{fontSize:20,color:V.muted}}>{open?"▲":"▼"}</span>
+          </div>
+        </button>
+      </div>
 
       {open&&(
         <>
@@ -1376,130 +1377,106 @@ function OtherCosts({basePriceTotal=0}) {
             {tabs.map(t=>(
               <button key={t.k} onClick={()=>setTab(t.k)}
                 style={{padding:"9px 22px",border:"none",background:"transparent",cursor:"pointer",
-                  fontSize:13,fontWeight:tab===t.k?700:400,
-                  color:tab===t.k?V.primary:V.muted,
-                  borderBottom:tab===t.k?`3px solid ${V.primary}`:"3px solid transparent",
-                  marginBottom:-2}}>
+                  fontSize:13,fontWeight:tab===t.k?700:400,color:tab===t.k?V.primary:V.muted,
+                  borderBottom:tab===t.k?`3px solid ${V.primary}`:"3px solid transparent",marginBottom:-2}}>
                 {t.l}
               </button>
             ))}
           </div>
 
-          {/* ── 付帯工事タブ ── */}
+          {/* 付帯工事 */}
           {tab==="futai"&&(
             <div>
-              <Row label="外構工事" value={gaiko}>
-                <Sel value={gaiko} onChange={setGaiko} opts={[{v:0,l:"未定（0円）"},...[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,350,400,450,500].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
+              <Row label="外構工事" amt={gaiko}>
+                <Sel value={gaiko} onChange={setGaiko} opts={[{v:0,l:"0万円（含まない）"},...[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300,350,400,450,500].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
               </Row>
-              <Row label="カーテン・ブラインド" value={curtain}>
+              <Row label="カーテン・ブラインド" amt={curtain}>
                 <Sel value={curtain} onChange={setCurtain} opts={[{v:0,l:"0万円（含まない）"},...[5,10,15,20,25,30,35,40,45,50].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
               </Row>
-              <Row label="エアコン" value={aircon}>
+              <Row label="エアコン" amt={aircon}>
                 <Sel value={aircon} onChange={setAircon} opts={[{v:0,l:"0万円（含まない）"},...[10,20,30,40,50,60,70,80,90,100].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
               </Row>
-              <Row label="TVアンテナ" value={antenna}>
+              <Row label="TVアンテナ" amt={antenna}>
                 <Sel value={antenna} onChange={setAntenna} opts={[{v:0,l:"なし（0円）"},{v:100000,l:"10万円（標準）"}]}/>
               </Row>
-              <Row label="地盤改良工事" value={jiban}>
+              <Row label="地盤改良工事" amt={jiban}>
                 <Sel value={jiban} onChange={setJiban} opts={[{v:0,l:"0万円（不要）"},...[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
               </Row>
-              <Row label="その他" value={futaiOther}>
+              <Row label="その他" amt={n(futaiOther)}>
                 <Inp value={futaiOther} onChange={setFutaiOther} placeholder="直接入力（円）"/>
               </Row>
               <SubTotal label="付帯工事　小計" total={futaiTotal}/>
             </div>
           )}
 
-          {/* ── 土地・諸費用タブ ── */}
+          {/* 土地・諸費用 */}
           {tab==="land"&&(
             <div>
-              <Row label="土地代金" value={landPrice}>
+              <Row label="土地代金" amt={n(landPrice)}>
                 <Inp value={landPrice} onChange={setLandPrice} placeholder="土地代金（円）"/>
               </Row>
-              <div style={{padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
-                <div style={{fontSize:13,color:V.fg,marginBottom:6}}>仲介手数料</div>
-                <div style={{display:"flex",gap:10,marginBottom:6}}>
-                  {["none","あり"].map(v=>(
-                    <button key={v} onClick={()=>setBroker(v)}
-                      style={{padding:"6px 18px",border:`1px solid ${broker===v?V.primary:V.border}`,borderRadius:20,
-                        background:broker===v?V.primary:"white",color:broker===v?"white":V.muted,cursor:"pointer",fontSize:12}}>
-                      {v==="none"?"なし":"あり（土地代×3%＋6万円×1.1）"}
-                    </button>
-                  ))}
-                </div>
-                {brokerFee>0&&<div style={{fontSize:12,color:V.primary,fontWeight:700}}>¥{brokerFee.toLocaleString()}</div>}
-              </div>
-              <Row label="不動産取得税" value={landTax}>
+              <Row label="仲介手数料" amt={n(brokerAmt)}>
+                <Inp value={brokerAmt} onChange={setBrokerAmt} placeholder="手入力（円）"/>
+              </Row>
+              <Row label="不動産取得税" amt={n(landTax)}>
                 <Inp value={landTax} onChange={setLandTax} placeholder="概算（円）"/>
               </Row>
-              <Row label="固定資産税（精算分）" value={fixedTax}>
+              <Row label="固定資産税（精算分）" amt={n(fixedTax)}>
                 <Inp value={fixedTax} onChange={setFixedTax} placeholder="概算（円）"/>
               </Row>
-              <Row label="水道分担金" value={waterFee}>
+              <Row label="水道分担金" amt={n(waterFee)}>
                 <Inp value={waterFee} onChange={setWaterFee} placeholder="概算（円）"/>
               </Row>
-              <Row label="下水道受益者負担金" value={sewerFee}>
+              <Row label="下水道受益者負担金" amt={n(sewerFee)}>
                 <Inp value={sewerFee} onChange={setSewerFee} placeholder="概算（円）"/>
               </Row>
-              <Row label="契約印紙代" value={stamp}>
-                <Inp value={stamp} onChange={setStamp} placeholder="概算（円）"/>
+              <Row label="契約印紙代" amt={stamp}>
+                <Sel value={stamp} onChange={setStamp} opts={stampOpts}/>
               </Row>
-              <div style={{padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
-                <div style={{fontSize:13,color:V.fg,marginBottom:8}}>登記費用</div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                  <div>
-                    <div style={{fontSize:11,color:V.muted,marginBottom:3}}>所有権移転登記</div>
-                    <Inp value={regTransfer} onChange={setRegTransfer}/>
-                    {regTransfer>0&&<div style={{fontSize:11,color:V.muted,marginTop:2}}>¥{regTransfer.toLocaleString()}</div>}
-                  </div>
-                  <div>
-                    <div style={{fontSize:11,color:V.muted,marginBottom:3}}>建物表示保存登記</div>
-                    <Inp value={regBuild} onChange={setRegBuild}/>
-                    {regBuild>0&&<div style={{fontSize:11,color:V.muted,marginTop:2}}>¥{regBuild.toLocaleString()}</div>}
-                  </div>
-                  <div>
-                    <div style={{fontSize:11,color:V.muted,marginBottom:3}}>抵当権設定登記</div>
-                    <Inp value={regMortgage} onChange={setRegMortgage}/>
-                    {regMortgage>0&&<div style={{fontSize:11,color:V.muted,marginTop:2}}>¥{regMortgage.toLocaleString()}</div>}
-                  </div>
-                  <div>
-                    <div style={{fontSize:11,color:V.muted,marginBottom:3}}>その他</div>
-                    <Inp value={regOther} onChange={setRegOther}/>
-                  </div>
-                </div>
-              </div>
               <SubTotal label="土地・諸費用　小計" total={landTotal}/>
             </div>
           )}
 
-          {/* ── 銀行諸費用タブ ── */}
+          {/* 銀行諸費用 + 登記費用 */}
           {tab==="bank"&&(
             <div>
-              <div style={{padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:13,color:V.fg}}>事務手数料</span>
-                  <span style={{fontSize:13,fontWeight:600,color:V.fg}}>¥55,000（固定）</span>
-                </div>
-              </div>
-              <div style={{padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:13,color:V.fg}}>印紙代</span>
-                  <span style={{fontSize:13,fontWeight:600,color:V.fg}}>¥20,200（固定）</span>
-                </div>
-              </div>
-              <Row label="保証料（借入金額の2.2%目安 / 直接入力）" value={guarantee}>
+              <Row label="事務手数料" amt={n(bankFee)}>
+                <Inp value={bankFee} onChange={setBankFee} placeholder="例: 55000"/>
+              </Row>
+              <Row label="印紙代" amt={n(bankStamp)}>
+                <Inp value={bankStamp} onChange={setBankStamp} placeholder="例: 20200"/>
+              </Row>
+              <Row label="保証料（借入金額の2.2%目安）" amt={n(guarantee)}>
                 <Inp value={guarantee} onChange={setGuarantee} placeholder="保証料（円）"/>
               </Row>
-              <div style={{padding:"10px 0",borderBottom:`1px solid ${V.border}50`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:13,color:V.fg}}>つなぎ融資手数料・利息</span>
-                  <span style={{fontSize:13,fontWeight:600,color:V.fg}}>¥300,000（目安）</span>
-                </div>
-              </div>
-              <Row label="火災保険" value={insurance}>
+              <Row label="つなぎ融資手数料・利息" amt={n(tsunagi)}>
+                <Inp value={tsunagi} onChange={setTsunagi} placeholder="例: 300000"/>
+              </Row>
+              <Row label="火災保険" amt={insurance}>
                 <Sel value={insurance} onChange={setInsurance} opts={[{v:0,l:"0万円（別途）"},...[5,10,15,20,25,30,35,40,45,50].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
               </Row>
-              <SubTotal label="銀行諸費用　小計" total={bankTotal}/>
+              <div style={{padding:"12px 0 6px",borderBottom:`1px solid ${V.border}50`}}>
+                <div style={{fontSize:13,fontWeight:600,color:V.fg,marginBottom:10}}>登記費用</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  {[
+                    {label:"所有権移転登記",val:regTransfer,set:setRegTransfer},
+                    {label:"建物表示保存登記",val:regBuild,set:setRegBuild},
+                    {label:"抵当権設定登記",val:regMortgage,set:setRegMortgage},
+                  ].map(({label,val,set})=>(
+                    <div key={label}>
+                      <div style={{fontSize:11,color:V.muted,marginBottom:3}}>{label}</div>
+                      <Sel value={val} onChange={set} opts={regOpts}/>
+                      {val>0&&<div style={{fontSize:11,color:V.muted,marginTop:2}}>¥{val.toLocaleString()}</div>}
+                    </div>
+                  ))}
+                  <div>
+                    <div style={{fontSize:11,color:V.muted,marginBottom:3}}>その他</div>
+                    <Inp value={regOther} onChange={setRegOther} placeholder="直接入力（円）"/>
+                    {n(regOther)>0&&<div style={{fontSize:11,color:V.muted,marginTop:2}}>¥{n(regOther).toLocaleString()}</div>}
+                  </div>
+                </div>
+              </div>
+              <SubTotal label="銀行諸費用・登記費用　小計" total={bankTotal}/>
             </div>
           )}
 
@@ -1513,9 +1490,7 @@ function OtherCosts({basePriceTotal=0}) {
             </div>
             <div style={{fontSize:28,fontWeight:800,color:"white"}}>¥{grandTotal.toLocaleString()}</div>
           </div>
-          <div style={{marginTop:10,fontSize:11,color:V.muted}}>
-            ※上記はあくまで目安です。実際の費用は条件により異なります。
-          </div>
+          <div style={{marginTop:10,fontSize:11,color:V.muted}}>※上記はあくまで目安です。実際の費用は条件により異なります。</div>
         </>
       )}
     </section>
@@ -1575,7 +1550,7 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
   if(displayTotal===0&&priceItems.length===0) return null;
 
   return(
-    <section style={{background:V.card,padding:"40px 32px",fontFamily:SANS}}>
+    <div style={{padding:"0 0 8px",fontFamily:SANS}}>
       <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:28}}>
         <h3 style={{fontFamily:SERIF,fontSize:22,fontWeight:500,color:V.fg,margin:0,whiteSpace:"nowrap"}}>概算建築費</h3>
         <div style={{flex:1,height:1,background:V.border}}/>
@@ -1714,7 +1689,7 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
       <div style={{padding:"12px 16px",background:"#fffbe6",border:"1px solid #ffe082",borderRadius:6,fontSize:12,color:"#7a6a3a"}}>
         ※本価格は概算です。敷地条件・仕様選定・法規条件・施工条件により変動する場合があります。詳細はご相談ください。
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -2676,19 +2651,27 @@ export default function App(){
                 </section>
               )}
 
-              {/* ── 概算建築費（金額管理データ優先・なければ予算から計算） ── */}
-              <PriceSection
-                priceItems={priceItems.filter(p=>p.display_client&&String(p.case_id)===String(c._sbId))}
-                caseId={c._sbId}
-                totalOverride={0}
-                productName={c.productName||""}
-                tsubo={c.tsubo}
-                buildingArea={c.area?.building}
-                totalArea={c.area?.total}
-              />
-
-              {/* ── その他費用 ── */}
-              <OtherCosts basePriceTotal={priceItems.filter(p=>p.display_client&&String(p.case_id)===String(c._sbId)).reduce((s,p)=>s+(p.calc_type==="unit_price"?(Number(p.unit_price)||0)*(Number(p.quantity)||1):(Number(p.amount)||0)),0)}/>
+              {/* ── 概算建築費 + その他費用（統合） ── */}
+              {(()=>{
+                const casePI = priceItems.filter(p=>p.display_client&&String(p.case_id)===String(c._sbId));
+                const bpTotal = casePI.reduce((s,p)=>s+(p.calc_type==="unit_price"?(Number(p.unit_price)||0)*(Number(p.quantity)||1):(Number(p.amount)||0)),0);
+                return(
+                  <OtherCosts
+                    basePriceTotal={bpTotal}
+                    priceSection={
+                      <PriceSection
+                        priceItems={casePI}
+                        caseId={c._sbId}
+                        totalOverride={0}
+                        productName={c.productName||""}
+                        tsubo={c.tsubo}
+                        buildingArea={c.area?.building}
+                        totalArea={c.area?.total}
+                      />
+                    }
+                  />
+                );
+              })()}
 
               {/* ── フッター ── */}
               <section style={{background:V.card,borderTop:`1px solid ${V.border}`,padding:"36px 32px"}}>
