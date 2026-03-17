@@ -1819,6 +1819,7 @@ export default function App(){
   // 詳細
   const [detailTab,setDetailTab]=useState("concept");
   const [lightbox,setLightbox]=useState(null); // {images, idx}
+  const [landPriceInput,setLandPriceInput]=useState(""); // 土地代金（詳細ページ用）
 
   // 管理
   const [adminUnlocked,setAdminUnlocked]=useState(false);
@@ -2766,7 +2767,7 @@ export default function App(){
                   {/* ── 土地代金 ── */}
                   <LandPriceSection landPrice={landPriceInput} onChange={setLandPriceInput}/>
                   {/* ── その他費用 ── */}
-                  <OtherCosts basePriceTotal={bpTotal} landPrice={landPriceInput} onLandPriceChange={setLandPriceInput}/>
+                  <OtherCosts basePriceTotal={bpTotal+Number(landPriceInput||0)} landPrice={landPriceInput} onLandPriceChange={setLandPriceInput}/>
                 </>);
               })()}
 
