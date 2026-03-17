@@ -1925,7 +1925,9 @@ export default function App(){
           }]
         })
       });
+      if(!res.ok){const t=await res.text();throw new Error(`APIエラー(${res.status}): ${t.slice(0,200)}`);}
       const data = await res.json();
+      if(data.error) throw new Error(`APIエラー: ${data.error.message||JSON.stringify(data.error)}`);
       const text = data.content?.[0]?.text||'';
       // JSONを抽出
       const match = text.match(/\[.*\]/s);
@@ -1999,7 +2001,9 @@ export default function App(){
           }]
         })
       });
+      if(!res.ok){const t=await res.text();throw new Error(`APIエラー(${res.status}): ${t.slice(0,200)}`);}
       const data = await res.json();
+      if(data.error) throw new Error(`APIエラー: ${data.error.message||JSON.stringify(data.error)}`);
       const text = data.content?.[0]?.text||'';
       const match = text.match(/\{[\s\S]*\}/);
       if(!match) throw new Error('生成結果を取得できませんでした');
