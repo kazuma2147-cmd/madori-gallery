@@ -1127,9 +1127,11 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
       console.log("Saving price item:", item);
       const saved = await sbUpsertPriceItem(config.url,config.key,item);
       console.log("Saved:", saved);
-      if(!saved){throw new Error("保存結果が空です。Supabaseのcase_idカラムが存在するか確認してください");}
+      if(!saved){throw new Error("保存結果が空です");}
       if(editItem.id){setPriceItems(prev=>prev.map(p=>p.id===saved.id?saved:p));}
       else{setPriceItems(prev=>[...prev,saved]);}
+      // 保存後に全件再読み込みして確実に反映
+      sbGetPriceItems(config.url,config.key).then(all=>setPriceItems(all)).catch(()=>{});
       setEditItem(null);
     } catch(e){
       console.error("Price save error:", e);
@@ -2305,9 +2307,9 @@ export default function App(){
 
               {/* ── 概算建築費（金額管理データ優先・なければ予算から計算） ── */}
               <PriceSection
-                priceItems={priceItems.filter(p=>p.display_client&&(p.case_id===c._sbId||p.case_id===null||p.case_id===undefined))}
+                priceItems={priceItems.filter(p=>p.display_client&&String(p.case_id)===String(c._sbId))}
                 caseId={c._sbId}
-                totalOverride={total>0?total:0}
+                totalOverride={0}
               />
 
               {/* ── フッター ── */}
