@@ -1344,13 +1344,19 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
             {tsuboForCalc>0&&(
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",padding:"6px 0",borderBottom:`1px solid ${V.border}`}}>
                 <span style={{fontSize:12,color:V.muted}}>延床面積</span>
-                <span style={{fontSize:15,fontWeight:700,color:V.fg}}>{tsuboForCalc.toFixed(1)}<span style={{fontSize:12,fontWeight:400}}>坪</span></span>
+                <span style={{fontSize:15,fontWeight:700,color:V.fg}}>
+                  {totalAreaNum>0&&<span style={{fontSize:12,fontWeight:400,color:V.muted,marginRight:4}}>{totalAreaNum}㎡</span>}
+                  {tsuboForCalc.toFixed(1)}<span style={{fontSize:12,fontWeight:400}}>坪</span>
+                </span>
               </div>
             )}
             {buildingTsubo&&(
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",padding:"6px 0",borderBottom:`1px solid ${V.border}`}}>
                 <span style={{fontSize:12,color:V.muted}}>施工面積</span>
-                <span style={{fontSize:15,fontWeight:700,color:V.fg}}>{buildingTsubo}<span style={{fontSize:12,fontWeight:400}}>坪</span></span>
+                <span style={{fontSize:15,fontWeight:700,color:V.fg}}>
+                  {buildingAreaNum>0&&<span style={{fontSize:12,fontWeight:400,color:V.muted,marginRight:4}}>{buildingAreaNum}㎡</span>}
+                  {buildingTsubo}<span style={{fontSize:12,fontWeight:400}}>坪</span>
+                </span>
               </div>
             )}
             {tsuboPriceMan>0&&(
@@ -1366,9 +1372,7 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
           <div>
             <div style={{fontSize:12,color:"rgba(255,255,255,.6)",letterSpacing:".1em",marginBottom:8}}>合計金額（税込概算）</div>
             <div style={{fontSize:36,fontWeight:800,color:"white"}}>¥{displayTotal.toLocaleString()}</div>
-            {displayTotal>0&&<div style={{fontSize:13,color:"rgba(255,255,255,.5)",marginTop:4}}>
-              約{Math.round(displayTotal/10000).toLocaleString()}万円
-            </div>}
+
           </div>
           {catTotals.length>0&&(
             <button onClick={()=>setExpanded(!expanded)} style={{marginTop:16,padding:"9px 16px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:7,color:"white",cursor:"pointer",fontSize:13,fontWeight:600,alignSelf:"flex-start"}}>
@@ -2349,6 +2353,59 @@ export default function App(){
                 </div>
               </section>
 
+
+              {/* ── 本体価格に含まれるもの ── */}
+              <section style={{background:V.card,padding:"40px 32px"}}>
+                <SecTitle text="本体価格に含まれるもの"/>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+                  {[
+                    {icon:"🏠",label:"住宅性能・品質",items:[
+                      "断熱等性能等級 5以上 / 一次エネルギー消費量等級 5以上",
+                      "ZEH基準採用およびBELS評価基準採用",
+                      "高気密・高断熱仕様",
+                      "長期優良住宅対応およびフラット35S対応",
+                      "高耐久・高耐雪仕様、シロアリ・防火対策",
+                    ]},
+                    {icon:"🛡",label:"保証・アフターサポート",items:[
+                      "構造保証・雨漏り保証・地盤品質：各20年間",
+                      "住宅設備保証：10年間",
+                      "アフターサービス（24時間365日受付）",
+                    ]},
+                    {icon:"🔨",label:"工事・施工関連",items:[
+                      "ベタ基礎",
+                      "電気配線工事、配管工事、屋内外給排水工事",
+                      "外部コンセント、散水栓",
+                      "仮設工事",
+                    ]},
+                    {icon:"📋",label:"調査・管理・申請",items:[
+                      "現地調査・地盤調査",
+                      "建築確認申請",
+                      "設計費、現場管理費",
+                    ]},
+                    {icon:"⚙",label:"設備・仕様",items:[
+                      "システムキッチン、システムバス、洗面化粧台、節水トイレ",
+                      "オール電化（エコキュート含む）",
+                      "LED照明、高性能サッシ＋網戸",
+                      "24時間換気システム、収納棚",
+                    ]},
+                  ].map((cat,i)=>(
+                    <div key={i} style={{borderRadius:6,border:`1px solid ${V.border}`,background:V.bg,padding:"18px 16px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                        <div style={{width:34,height:34,borderRadius:4,background:V.primary+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17}}>{cat.icon}</div>
+                        <h4 style={{fontSize:13,fontWeight:700,color:V.fg,margin:0}}>{cat.label}</h4>
+                      </div>
+                      <ul style={{listStyle:"none",margin:0,padding:0}}>
+                        {cat.items.map((it,j)=>(
+                          <li key={j} style={{display:"flex",alignItems:"flex-start",gap:7,fontSize:12,color:V.muted,padding:"5px 0",borderBottom:`1px solid ${V.border}40`}}>
+                            <span style={{marginTop:6,width:5,height:5,minWidth:5,borderRadius:"50%",background:V.primary+"60",flexShrink:0}}/>
+                            {it}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
               {/* ── YouTube ── */}
               {ytId&&(
                 <section style={{background:V.bg,padding:"40px 32px"}}>
