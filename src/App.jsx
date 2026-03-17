@@ -64,7 +64,7 @@ const EMPTY_SPECS = {
 };
 const EMPTY_CASE = {
   buildType:"注文住宅", style:"ナチュラル", layout:"3LDK", floors:"2階建て",
-  title:"", subtitle:"", area:{ land:"", building:"", total:"" }, tsubo:"",
+  title:"", subtitle:"", area:{ land:"", building:"", total:"" }, tsubo:"", productName:"",
   budget:"3,000〜3,500万円", direction:"南", location:"", year:new Date().getFullYear(),
   structure:"木造軸組", concept:"", highlights:["","","",""],
   rooms:[{ name:"LDK", floor:1, jyou:"" }],
@@ -1272,7 +1272,7 @@ function CasePriceEditor({config, caseId, priceItems, setPriceItems}) {
 
 
 // ── お客様向け金額表示コンポーネント ─────────────────────────
-function PriceSection({priceItems, totalOverride}) {
+function PriceSection({priceItems, totalOverride, productName='', tsubo, buildingArea, totalArea}) {
   const [expanded, setExpanded] = React.useState(false);
   const [showLoan, setShowLoan] = React.useState(false);
   const [loanRate, setLoanRate] = React.useState(1.5);
@@ -1298,8 +1298,20 @@ function PriceSection({priceItems, totalOverride}) {
     items:clientItems.filter(p=>p.category===cat)
   })).filter(c=>c.total>0);
 
+  // 坪単価計算: 本体価格 / 延床坪数
+  const tsuboNum = Number(tsubo)||0;
+  const totalAreaNum = Number(totalArea)||0;
+  const tsuboForCalc = tsuboNum>0 ? tsuboNum : (totalAreaNum>0 ? totalAreaNum/3.306 : 0);
+  // 本体(建物本体カテゴリ)の金額
+  const honTaiItems = clientItems.filter(p=>p.category==="建物本体");
+  const honTaiTotal = honTaiItems.reduce((s,p)=>s+calcAmt(p),0);
+  const tsuboPriceMan = (honTaiTotal>0 && tsuboForCalc>0) ? Math.round(honTaiTotal/tsuboForCalc/10000) : 0;
+  // 施工面積坪数
+  const buildingAreaNum = Number(buildingArea)||0;
+  const buildingTsubo = buildingAreaNum>0 ? (buildingAreaNum/3.306).toFixed(1) : "";
+
   // ローン計算（元利均等）
-  const loanAmt = Math.max(0,(totalOverride||total)-downPay*10000);
+  const loanAmt = Math.max(0,displayTotal-downPay*10000);
   const monthRate = loanRate/100/12;
   const months = loanYears*12;
   const monthlyPay = loanAmt>0&&monthRate>0
@@ -1307,7 +1319,7 @@ function PriceSection({priceItems, totalOverride}) {
     : Math.round(loanAmt/months);
 
   // priceItemsが登録されていればそれを使う、なければtotalOverrideを使う
-  const displayTotal = total>0 ? total : (totalOverride||0);
+  const displayTotal = total>0 ? total : 0;
 
   if(displayTotal===0&&priceItems.length===0) return null;
 
@@ -1318,22 +1330,52 @@ function PriceSection({priceItems, totalOverride}) {
         <div style={{flex:1,height:1,background:V.border}}/>
       </div>
 
-      {/* メイン合計 */}
-      <div style={{background:V.primary,borderRadius:10,padding:"28px 32px",marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,.6)",letterSpacing:".1em",marginBottom:6}}>合計金額（税込概算）</div>
-          <div style={{fontSize:36,fontWeight:800,color:"white"}}>
-            ¥{displayTotal.toLocaleString()}
+      {/* メイン合計: 左=商品情報 右=金額 */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+        {/* 左: 商品名・面積情報 */}
+        <div style={{background:V.secondary,borderRadius:10,padding:"24px 28px",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+          {productName&&(
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:V.muted,letterSpacing:".1em",marginBottom:4}}>商品名</div>
+              <div style={{fontSize:28,fontWeight:800,color:V.primary,letterSpacing:".05em"}}>{productName}</div>
+            </div>
+          )}
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {tsuboForCalc>0&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",padding:"6px 0",borderBottom:`1px solid ${V.border}`}}>
+                <span style={{fontSize:12,color:V.muted}}>延床面積</span>
+                <span style={{fontSize:15,fontWeight:700,color:V.fg}}>{tsuboForCalc.toFixed(1)}<span style={{fontSize:12,fontWeight:400}}>坪</span></span>
+              </div>
+            )}
+            {buildingTsubo&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",padding:"6px 0",borderBottom:`1px solid ${V.border}`}}>
+                <span style={{fontSize:12,color:V.muted}}>施工面積</span>
+                <span style={{fontSize:15,fontWeight:700,color:V.fg}}>{buildingTsubo}<span style={{fontSize:12,fontWeight:400}}>坪</span></span>
+              </div>
+            )}
+            {tsuboPriceMan>0&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",padding:"6px 0"}}>
+                <span style={{fontSize:12,color:V.muted}}>坪単価</span>
+                <span style={{fontSize:15,fontWeight:700,color:V.primary}}>{tsuboPriceMan}<span style={{fontSize:12,fontWeight:400}}>万円</span></span>
+              </div>
+            )}
           </div>
-          {displayTotal>0&&<div style={{fontSize:13,color:"rgba(255,255,255,.5)",marginTop:4}}>
-            約{Math.round(displayTotal/10000).toLocaleString()}万円
-          </div>}
         </div>
-        {catTotals.length>0&&(
-          <button onClick={()=>setExpanded(!expanded)} style={{padding:"10px 20px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:7,color:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>
-            {expanded?"▲ 閉じる":"▼ 内訳を見る"}
-          </button>
-        )}
+        {/* 右: 合計金額 */}
+        <div style={{background:V.primary,borderRadius:10,padding:"24px 28px",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,.6)",letterSpacing:".1em",marginBottom:8}}>合計金額（税込概算）</div>
+            <div style={{fontSize:36,fontWeight:800,color:"white"}}>¥{displayTotal.toLocaleString()}</div>
+            {displayTotal>0&&<div style={{fontSize:13,color:"rgba(255,255,255,.5)",marginTop:4}}>
+              約{Math.round(displayTotal/10000).toLocaleString()}万円
+            </div>}
+          </div>
+          {catTotals.length>0&&(
+            <button onClick={()=>setExpanded(!expanded)} style={{marginTop:16,padding:"9px 16px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.3)",borderRadius:7,color:"white",cursor:"pointer",fontSize:13,fontWeight:600,alignSelf:"flex-start"}}>
+              {expanded?"▲ 閉じる":"▼ 内訳を見る"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* カテゴリ大分類（常時表示） */}
@@ -1810,6 +1852,18 @@ export default function App(){
             {/* 基本情報 */}
             <Sec title="📋 基本情報">
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:11}}>
+                <div style={{gridColumn:"1/-1",marginBottom:4}}>
+                  <Lbl>商品名</Lbl>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
+                    {["FourS","Poche","colore","racie","stela"].map(p=>(
+                      <button type="button" key={p} onClick={()=>setFormData(f=>({...f,productName:f.productName===p?"":p}))}
+                        style={{padding:"6px 16px",border:`1px solid ${formData.productName===p?"#1e3a5f":"#d4cfc5"}`,borderRadius:20,background:formData.productName===p?"#1e3a5f":"white",color:formData.productName===p?"white":"#5a4a3a",cursor:"pointer",fontSize:13,fontWeight:formData.productName===p?700:400}}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                  <input value={formData.productName||""} onChange={e=>setFormData(f=>({...f,productName:e.target.value}))} style={{...inp}} placeholder="その他の場合は直接入力"/>
+                </div>
                 <div style={{gridColumn:"1/-1"}}><Lbl>タイトル *</Lbl><input value={formData.title} onChange={e=>setFormData(f=>({...f,title:e.target.value}))} style={inp} placeholder="例: 光と緑に包まれる、家族の居場所"/></div>
                 <div style={{gridColumn:"1/-1"}}><Lbl>サブタイトル</Lbl><input value={formData.subtitle} onChange={e=>setFormData(f=>({...f,subtitle:e.target.value}))} style={inp}/></div>
                 {[{l:"建物タイプ",k:"buildType",opts:BUILD_TYPE_LIST},{l:"スタイル",k:"style",opts:STYLE_LIST},{l:"間取り",k:"layout",opts:LAYOUT_LIST},{l:"階数",k:"floors",opts:FLOOR_LIST},{l:"構造",k:"structure",opts:STRUCT_LIST},{l:"向き",k:"direction",opts:DIR_LIST}].map(({l,k,opts})=>(
@@ -2310,6 +2364,10 @@ export default function App(){
                 priceItems={priceItems.filter(p=>p.display_client&&String(p.case_id)===String(c._sbId))}
                 caseId={c._sbId}
                 totalOverride={0}
+                productName={c.productName||""}
+                tsubo={c.tsubo}
+                buildingArea={c.area?.building}
+                totalArea={c.area?.total}
               />
 
               {/* ── フッター ── */}
