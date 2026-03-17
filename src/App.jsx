@@ -1306,6 +1306,90 @@ function OCSubTotal({label,total}){
   );
 }
 
+function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
+  const [loanRate,  setLoanRate]  = React.useState(1.5);
+  const [loanYears, setLoanYears] = React.useState(35);
+  const [downPay,   setDownPay]   = React.useState("");
+  const V = OC_V;
+  const SANS = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
+
+  const combined = basePriceTotal + otherTotal;
+  // 100万単位で切り上げ
+  const roundedUp = combined>0 ? Math.ceil(combined/1000000)*1000000 : 0;
+  const loanBase = Math.max(0, roundedUp - (Number(downPay)||0)*10000);
+  const monthRate = loanRate/100/12;
+  const months = loanYears*12;
+  const monthly = loanBase>0&&monthRate>0
+    ? Math.round(loanBase*(monthRate*Math.pow(1+monthRate,months))/(Math.pow(1+monthRate,months)-1))
+    : loanBase>0 ? Math.round(loanBase/months) : 0;
+
+  if(combined===0) return null;
+
+  return(
+    <div style={{marginTop:20,fontFamily:SANS}}>
+      {/* 合計表示 */}
+      <div style={{background:V.secondary,borderRadius:8,padding:"16px 20px",marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
+          <span style={{fontSize:13,color:V.muted}}>本体価格</span>
+          <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{basePriceTotal.toLocaleString()}</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${V.border}`}}>
+          <span style={{fontSize:13,color:V.muted}}>その他費用</span>
+          <span style={{fontSize:14,fontWeight:600,color:V.fg}}>¥{otherTotal.toLocaleString()}</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+          <span style={{fontSize:14,fontWeight:700,color:V.fg}}>合計金額</span>
+          <span style={{fontSize:18,fontWeight:800,color:V.primary}}>¥{combined.toLocaleString()}</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+          <span style={{fontSize:12,color:V.muted}}>借入額（100万単位切り上げ）</span>
+          <span style={{fontSize:16,fontWeight:700,color:V.primary}}>¥{roundedUp.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* ローン試算 */}
+      <div style={{background:V.secondary,borderRadius:8,padding:"18px 20px"}}>
+        <div style={{fontSize:14,fontWeight:700,color:V.fg,marginBottom:14}}>🏦 月々の返済目安</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+          <div>
+            <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>頭金（万円）</label>
+            <input type="text" inputMode="numeric" value={downPay}
+              onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,"");setDownPay(v);}}
+              placeholder="0"
+              style={{width:"100%",padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13,boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>金利（%）</label>
+            <input type="number" step="0.1" value={loanRate}
+              onChange={e=>setLoanRate(Number(e.target.value))}
+              style={{width:"100%",padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}/>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>返済年数</label>
+            <select value={loanYears} onChange={e=>setLoanYears(Number(e.target.value))}
+              style={{width:"100%",padding:"7px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}>
+              {[10,15,20,25,30,35].map(y=><option key={y} value={y}>{y}年</option>)}
+            </select>
+          </div>
+        </div>
+        {monthly>0&&(
+          <div style={{background:V.primary,borderRadius:7,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginBottom:4}}>月々返済目安</div>
+              <div style={{fontSize:30,fontWeight:800,color:"white"}}>¥{monthly.toLocaleString()}<span style={{fontSize:14,fontWeight:400}}>/ 月</span></div>
+            </div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.5)",textAlign:"right"}}>
+              借入: ¥{loanBase.toLocaleString()}<br/>
+              金利{loanRate}% · {loanYears}年
+            </div>
+          </div>
+        )}
+        <div style={{marginTop:10,fontSize:11,color:V.muted}}>※金利・借入条件・諸費用により実際の返済額は異なります</div>
+      </div>
+    </div>
+  );
+}
+
 function OtherCosts({basePriceTotal=0}) {
   const [open, setOpen] = React.useState(false);
   const [tab, setTab] = React.useState("futai");
@@ -1332,7 +1416,7 @@ function OtherCosts({basePriceTotal=0}) {
   const [bankStamp,  setBankStamp]  = React.useState("20200");
   const [guarantee,  setGuarantee]  = React.useState("800000");
   const [tsunagi,    setTsunagi]    = React.useState("300000");
-  const [insurance,  setInsurance]  = React.useState(0);
+  const [insurance,  setInsurance]  = React.useState(250000);
   const [regTransfer,setRegTransfer]= React.useState(150000);
   const [regBuild,   setRegBuild]   = React.useState(200000);
   const [regMortgage,setRegMortgage]= React.useState(150000);
@@ -1400,7 +1484,7 @@ function OtherCosts({basePriceTotal=0}) {
                 <Sel value={aircon} onChange={setAircon} opts={[{v:0,l:"0万円（含まない）"},...[10,20,30,40,50,60,70,80,90,100].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
               </Row>
               <Row label="TVアンテナ" amt={antenna}>
-                <Sel value={antenna} onChange={setAntenna} opts={[{v:0,l:"なし（0円）"},{v:100000,l:"10万円（標準）"}]}/>
+                <Sel value={antenna} onChange={setAntenna} opts={[{v:0,l:"なし（0円）"},{v:100000,l:"10万円"}]}/>
               </Row>
               <Row label="地盤改良工事" amt={jiban}>
                 <Sel value={jiban} onChange={setJiban} opts={[{v:0,l:"0万円（不要）"},...[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200].map(n=>({v:n*10000,l:`${n}万円`}))]}/>
@@ -1488,6 +1572,9 @@ function OtherCosts({basePriceTotal=0}) {
             <div style={{fontSize:28,fontWeight:800,color:"white"}}>¥{grandTotal.toLocaleString()}</div>
           </div>
           <div style={{marginTop:10,fontSize:11,color:V.muted}}>※上記はあくまで目安です。実際の費用は条件により異なります。</div>
+
+          {/* 本体+諸費用 合計 → 借入額 → ローン試算 */}
+          <OCLoanCalc basePriceTotal={basePriceTotal} otherTotal={grandTotal}/>
         </>
       )}
     </section>
@@ -1497,10 +1584,6 @@ function OtherCosts({basePriceTotal=0}) {
 // ── お客様向け金額表示コンポーネント ─────────────────────────
 function PriceSection({priceItems, totalOverride, productName='', tsubo, buildingArea, totalArea}) {
   const [expanded, setExpanded] = React.useState(false);
-  const [showLoan, setShowLoan] = React.useState(false);
-  const [loanRate, setLoanRate] = React.useState(1.5);
-  const [loanYears, setLoanYears] = React.useState(35);
-  const [downPay, setDownPay] = React.useState(0);
 
   const V = {fg:"#252d3d",primary:"#1e3a5f",secondary:"#edf0f5",muted:"#5c6b7a",border:"#d0d8e4",card:"#ffffff"};
   const SANS = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
@@ -1535,13 +1618,6 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
 
   // priceItemsが登録されていればそれを使う、なければtotalOverrideを使う
   const displayTotal = total>0 ? total : 0;
-  // ローン計算（元利均等）
-  const loanAmt = Math.max(0,displayTotal-downPay*10000);
-  const monthRate = loanRate/100/12;
-  const months = loanYears*12;
-  const monthlyPay = loanAmt>0&&monthRate>0
-    ? Math.round(loanAmt*(monthRate*Math.pow(1+monthRate,months))/(Math.pow(1+monthRate,months)-1))
-    : Math.round(loanAmt/months);
 
 
   if(displayTotal===0&&priceItems.length===0) return null;
@@ -1641,46 +1717,6 @@ function PriceSection({priceItems, totalOverride, productName='', tsubo, buildin
           </div>
         </div>
       )}
-
-      {/* ローン試算 */}
-      <div style={{marginBottom:16}}>
-        <button onClick={()=>setShowLoan(!showLoan)} style={{padding:"7px 16px",border:`1px solid ${V.border}`,borderRadius:6,background:V.card,cursor:"pointer",fontSize:13,color:V.muted,display:"flex",alignItems:"center",gap:6}}>
-          🏦 {showLoan?"ローン試算を閉じる":"月々の返済目安を見る"}
-        </button>
-        {showLoan&&(
-          <div style={{marginTop:12,padding:"18px 20px",background:V.secondary,borderRadius:8}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
-              <div>
-                <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>頭金（万円）</label>
-                <input type="number" value={downPay} onChange={e=>setDownPay(Number(e.target.value))} style={{width:"100%",padding:"6px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}} placeholder="0"/>
-              </div>
-              <div>
-                <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>金利（%）</label>
-                <input type="number" step="0.1" value={loanRate} onChange={e=>setLoanRate(Number(e.target.value))} style={{width:"100%",padding:"6px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}/>
-              </div>
-              <div>
-                <label style={{display:"block",fontSize:11,color:V.muted,marginBottom:4}}>返済年数</label>
-                <select value={loanYears} onChange={e=>setLoanYears(Number(e.target.value))} style={{width:"100%",padding:"6px 10px",border:`1px solid ${V.border}`,borderRadius:5,fontSize:13}}>
-                  {[10,15,20,25,30,35].map(y=><option key={y} value={y}>{y}年</option>)}
-                </select>
-              </div>
-            </div>
-            {loanAmt>0&&(
-              <div style={{background:V.primary,borderRadius:7,padding:"14px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontSize:12,color:"rgba(255,255,255,.6)",marginBottom:4}}>月々返済目安</div>
-                  <div style={{fontSize:28,fontWeight:800,color:"white"}}>¥{monthlyPay.toLocaleString()}<span style={{fontSize:14,fontWeight:400}}>/ 月</span></div>
-                </div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.5)",textAlign:"right"}}>
-                  借入: ¥{loanAmt.toLocaleString()}<br/>
-                  金利{loanRate}% · {loanYears}年
-                </div>
-              </div>
-            )}
-            <div style={{marginTop:10,fontSize:11,color:V.muted}}>※金利・借入条件・諸費用により実際の返済額は異なります</div>
-          </div>
-        )}
-      </div>
 
       {/* 注意文言 */}
       <div style={{padding:"12px 16px",background:"#fffbe6",border:"1px solid #ffe082",borderRadius:6,fontSize:12,color:"#7a6a3a"}}>
