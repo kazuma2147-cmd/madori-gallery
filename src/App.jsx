@@ -1899,10 +1899,10 @@ export default function App(){
     setAiAnalyzing(true); setAiFloor(floorNum);
     try {
       // 画像をbase64に変換
-      const resp = await fetch(imgUrl);
-      const blob = await resp.blob();
-      const base64 = await new Promise(res=>{ const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.readAsDataURL(blob); });
-      const mediaType = blob.type||'image/jpeg';
+      const imgContent = await resizeImageToBase64(imgUrl, 1000);
+      if(!imgContent) throw new Error('画像の読み込みに失敗しました');
+      const base64 = imgContent.source.data;
+      const mediaType = 'image/jpeg';
 
       const res = await fetch('/api/analyze',{
         method:'POST',
@@ -1913,7 +1913,7 @@ export default function App(){
           messages:[{
             role:'user',
             content:[
-              {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+              imgContent,
               {type:'text',text:`この間取り図を見て、各部屋の名前と帖数を抽出してください。
 必ずJSON配列のみを返してください（説明文なし）。
 形式: [{"name":"LDK","jyou":"19"},{"name":"洋室1","jyou":"6"},...]
@@ -1947,22 +1947,35 @@ export default function App(){
     }
   }
 
+  // 画像URLをリサイズしてbase64に変換（最大800px・品質0.7）
+  async function resizeImageToBase64(url, maxSize=800) {
+    return new Promise(async (resolve) => {
+      try {
+        const r = await fetch(url);
+        const b = await r.blob();
+        const bmp = await createImageBitmap(b);
+        const scale = Math.min(1, maxSize / Math.max(bmp.width, bmp.height));
+        const w = Math.round(bmp.width * scale);
+        const h = Math.round(bmp.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        const b64 = dataUrl.split(',')[1];
+        resolve({type:'image', source:{type:'base64', media_type:'image/jpeg', data:b64}});
+      } catch(e) { resolve(null); }
+    });
+  }
+
   // AI全自動生成: 画像から タイトル・サブタイトル・コンセプト・ハイライトを生成
   async function autoGenerateAll() {
     const allImgs = [formData.image,...(formData.floorImages||[]),...(formData.images||[])].filter(Boolean);
     if(allImgs.length===0){ alert('先にメイン画像・間取り画像・パース画像を登録してください'); return; }
     setAiGenerating(true);
     try {
-      // 画像を最大4枚base64変換（メイン+パース優先）
-      const targets = [formData.image,...(formData.images||[])].filter(Boolean).slice(0,4);
-      const imgContents = await Promise.all(targets.map(async url=>{
-        try{
-          const r=await fetch(url);
-          const b=await r.blob();
-          const b64=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result.split(',')[1]);fr.readAsDataURL(b);});
-          return {type:'image',source:{type:'base64',media_type:b.type||'image/jpeg',data:b64}};
-        }catch(e){return null;}
-      }));
+      // 画像を最大2枚リサイズしてbase64変換（ペイロードサイズ削減）
+      const targets = [formData.image,...(formData.images||[])].filter(Boolean).slice(0,2);
+      const imgContents = await Promise.all(targets.map(url=>resizeImageToBase64(url, 800)));
       const validImgs = imgContents.filter(Boolean);
 
       const styleInfo = `建物タイプ:${formData.buildType||''} スタイル:${formData.style||''} 間取り:${formData.layout||''} 階数:${formData.floors||''}`;
