@@ -220,14 +220,6 @@ function FeatureFilter({selected,onChange}){
 
 // ライトボックス
 function Lightbox({images,idx,onClose,onPrev,onNext}){
-  // price_items ロード
-  // price_itemsは常に全件取得（case_idフィルタはUI側で行う）
-  useEffect(()=>{
-    if(config){
-      sbGetPriceItems(config.url,config.key).then(items=>{setPriceItems(items);setPriceLoaded(true);}).catch(()=>setPriceLoaded(true));
-    }
-  },[config]);
-
   useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();if(e.key==="ArrowLeft")onPrev();if(e.key==="ArrowRight")onNext();};window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);},[]);
   return(
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.9)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -1513,6 +1505,15 @@ export default function App(){
   useEffect(()=>{if(envConfig)return;try{const s=localStorage.getItem(CONFIG_KEY);if(s)setConfig(JSON.parse(s));}catch{}},[]);
   const fetchCases=useCallback(async cfg=>{if(!cfg)return;setLoading(true);setLoadErr("");try{setCases(await sbGetCases(cfg.url,cfg.key));}catch(e){setLoadErr(e.message);}finally{setLoading(false);}},[]); 
   useEffect(()=>{fetchCases(config);},[config,fetchCases]);
+
+  // price_items: configが変わるたびに全件再取得
+  useEffect(()=>{
+    if(config?.url&&config?.key){
+      sbGetPriceItems(config.url,config.key)
+        .then(items=>{ setPriceItems(items); setPriceLoaded(true); })
+        .catch(()=>setPriceLoaded(true));
+    }
+  },[config]);
   function saveConfig(cfg){localStorage.setItem(CONFIG_KEY,JSON.stringify(cfg));setConfig(cfg);}
 
   const filtered=cases.filter(c=>{
