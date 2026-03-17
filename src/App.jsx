@@ -1306,6 +1306,45 @@ function OCSubTotal({label,total}){
   );
 }
 
+// ── 土地代金入力セクション ─────────────────────────────────
+function LandPriceSection({landPrice='', onChange}) {
+  const V = OC_V;
+  const SANS = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif";
+  const SERIF = "Georgia,'Noto Serif JP',serif";
+  const nv = Number(landPrice)||0;
+  return(
+    <section style={{background:V.card,padding:"28px 32px",fontFamily:SANS,borderTop:`1px solid ${V.border}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
+        <h3 style={{fontFamily:SERIF,fontSize:20,fontWeight:500,color:V.fg,margin:0,whiteSpace:"nowrap"}}>土地代金</h3>
+        <div style={{flex:1,height:1,background:V.border}}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"end"}}>
+        <div>
+          <label style={{display:"block",fontSize:12,color:V.muted,marginBottom:6}}>土地代金（円）</label>
+          <input type="text" inputMode="numeric" value={landPrice}
+            onChange={e=>{const v=e.target.value.replace(/[^0-9]/g,"");onChange(v);}}
+            placeholder="例: 15000000"
+            style={{width:"100%",padding:"10px 14px",border:`2px solid ${nv>0?V.primary:V.border}`,
+              borderRadius:7,fontSize:16,boxSizing:"border-box",
+              outline:"none",transition:"border-color .15s"}}/>
+          {nv>0&&<div style={{fontSize:12,color:V.muted,marginTop:5}}>
+            約 {Math.round(nv/10000).toLocaleString()}万円
+          </div>}
+        </div>
+        <div style={{background:V.secondary,borderRadius:8,padding:"16px 20px"}}>
+          <div style={{fontSize:11,color:V.muted,marginBottom:4}}>入力中の土地代金</div>
+          <div style={{fontSize:24,fontWeight:800,color:nv>0?V.primary:V.muted}}>
+            {nv>0 ? `¥${nv.toLocaleString()}` : "未入力"}
+          </div>
+          <div style={{fontSize:11,color:V.muted,marginTop:4}}>
+            ※その他費用の土地・諸費用タブと連動しています
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
   const [loanRate,  setLoanRate]  = React.useState(1.5);
   const [loanYears, setLoanYears] = React.useState(35);
@@ -1413,7 +1452,7 @@ function OCLoanCalc({basePriceTotal=0, otherTotal=0}) {
   );
 }
 
-function OtherCosts({basePriceTotal=0}) {
+function OtherCosts({basePriceTotal=0, landPrice='', onLandPriceChange=null}) {
   const [open, setOpen] = React.useState(false);
   const [tab, setTab] = React.useState("futai");
 
@@ -1426,7 +1465,7 @@ function OtherCosts({basePriceTotal=0}) {
   const [futaiOther, setFutaiOther] = React.useState("");
 
   // ── 土地・諸費用 ──
-  const [landPrice,  setLandPrice]  = React.useState("");
+  // landPriceは外部から管理（概算建築費と合計するため）
   const [brokerAmt,  setBrokerAmt]  = React.useState(""); // 手入力
   const [landTax,    setLandTax]    = React.useState("");
   const [fixedTax,   setFixedTax]   = React.useState("");
@@ -1523,7 +1562,7 @@ function OtherCosts({basePriceTotal=0}) {
           {tab==="land"&&(
             <div>
               <Row label="土地代金" amt={n(landPrice)}>
-                <Inp value={landPrice} onChange={setLandPrice} placeholder="土地代金（円）"/>
+                <Inp value={landPrice} onChange={v=>{if(onLandPriceChange)onLandPriceChange(v);}} placeholder="土地代金（円）（※上の土地代金欄と連動）"/>
               </Row>
               <Row label="仲介手数料" amt={n(brokerAmt)}>
                 <Inp value={brokerAmt} onChange={setBrokerAmt} placeholder="手入力（円）"/>
@@ -2724,8 +2763,10 @@ export default function App(){
                     buildingArea={c.area?.building}
                     totalArea={c.area?.total}
                   />
+                  {/* ── 土地代金 ── */}
+                  <LandPriceSection landPrice={landPriceInput} onChange={setLandPriceInput}/>
                   {/* ── その他費用 ── */}
-                  <OtherCosts basePriceTotal={bpTotal}/>
+                  <OtherCosts basePriceTotal={bpTotal} landPrice={landPriceInput} onLandPriceChange={setLandPriceInput}/>
                 </>);
               })()}
 
