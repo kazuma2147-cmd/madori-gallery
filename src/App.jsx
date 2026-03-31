@@ -62,6 +62,13 @@ const EMPTY_SPECS = {
   ventilation:"", longLife:"", insulationGrade:"", quakeGrade:"",
   solarKw:"", batteryKwh:"", damper:"",
 };
+const DEFAULT_SPECS = {
+  kitchen:"タカラスタンダード", bath:"タカラスタンダード", washroom:"タカラスタンダード", toilet:"TOTO",
+  floorInsulation:"アクリア", wallInsulation:"アクリア", ceilingInsulation:"アクリア",
+  outerWall:"窯業系サイディング", roof:"ガルバリウム鋼板", sash:"アルミ樹脂複合サッシ（ペアガラス）", floorMaterial:"コンビットリアージュ",
+  ventilation:"3種", longLife:"", insulationGrade:"5", quakeGrade:"3",
+  solarKw:"", batteryKwh:"", damper:"",
+};
 const EMPTY_CASE = {
   buildType:"注文住宅", style:"ナチュラル", layout:"3LDK", floors:"2階建て",
   title:"", subtitle:"", area:{ land:"", floor1:"", floor2:"", total:"" }, tsubo:"", productName:"",
@@ -1829,6 +1836,7 @@ export default function App(){
   const [saveStatus,setSaveStatus]=useState("");const [saveErr,setSaveErr]=useState("");
   const [deleteConfirm,setDeleteConfirm]=useState(null);
   const [imgUploading,setImgUploading]=useState(false);const [addImgUploading,setAddImgUploading]=useState(false);const [floorImgUploading,setFloorImgUploading]=useState(false);const [aiAnalyzing,setAiAnalyzing]=useState(false);const [aiFloor,setAiFloor]=useState(null);const [aiGenerating,setAiGenerating]=useState(false);
+  const [batchProcessing,setBatchProcessing]=useState(false);const [batchProgress,setBatchProgress]=useState({done:0,total:0,errors:0});
   const imgRef=useRef();const addImgRef=useRef();const floorImgRef=useRef();
   const [dragIdx,setDragIdx]=useState(null);
   const [imgDragIdx,setImgDragIdx]=useState(null);
@@ -1875,8 +1883,8 @@ export default function App(){
   function clearFilters(){setFBuildType("");setFStyles([]);setFLayouts([]);setFFloor("");setFBudget("");setFTsubo("");setFFeatures([]);}
   const hasFilter=filterBuildType||filterStyles.length>0||filterLayouts.length>0||filterFloor||filterBudget||filterTsubo||filterFeatures.length>0;
 
-  function openNew(){setEditingCase(null);setFormData({...EMPTY_CASE,highlights:["","","",""],rooms:[{name:"LDK",floor:1,jyou:""}],features:[],images:[],image:"",youtube:"",specs:{...EMPTY_SPECS}});setSaveErr("");setView("adminForm");}
-  function openEdit(c){setEditingCase(c._sbId);const d=JSON.parse(JSON.stringify({...EMPTY_CASE,...c,specs:{...EMPTY_SPECS,...(c.specs||{})}}));if(d.rooms&&d.rooms[0]&&d.rooms[0].area!==undefined&&d.rooms[0].jyou===undefined){d.rooms=d.rooms.map(r=>({...r,jyou:r.area||""}))}if(!d.floorImages||d.floorImages.length===0){d.floorImages=[];d.images=d.images||[];}setFormData(d);setSaveErr("");setView("adminForm");}
+  function openNew(){setEditingCase(null);setFormData({...EMPTY_CASE,highlights:["","","",""],rooms:[{name:"LDK",floor:1,jyou:""}],features:[],images:[],image:"",youtube:"",specs:{...DEFAULT_SPECS}});setSaveErr("");setView("adminForm");}
+  function openEdit(c){setEditingCase(c._sbId);const d=JSON.parse(JSON.stringify({...EMPTY_CASE,...c,specs:Object.fromEntries(Object.keys(DEFAULT_SPECS).map(k=>[k,(c.specs||{})[k]||(DEFAULT_SPECS[k]||"")]))}));if(d.rooms&&d.rooms[0]&&d.rooms[0].area!==undefined&&d.rooms[0].jyou===undefined){d.rooms=d.rooms.map(r=>({...r,jyou:r.area||""}))}if(!d.floorImages||d.floorImages.length===0){d.floorImages=[];d.images=d.images||[];}setFormData(d);setSaveErr("");setView("adminForm");}
 
   async function handleSaveCase(){
     if(!formData.title){setSaveErr("タイトルを入力してください");return;}
@@ -1973,20 +1981,25 @@ export default function App(){
     if(allImgs.length===0){ alert('先にメイン画像・間取り画像・パース画像を登録してください'); return; }
     setAiGenerating(true);
     try {
-      // 画像を最大2枚リサイズしてbase64変換（ペイロードサイズ削減）
-      const targets = [formData.image,...(formData.images||[])].filter(Boolean).slice(0,2);
-      const imgContents = await Promise.all(targets.map(url=>resizeImageToBase64(url, 800)));
-      const validImgs = imgContents.filter(Boolean);
+      // 外観/パース画像（最大2枚）+ 間取り画像（最大2枚）をbase64変換
+      const perspTargets = [formData.image,...(formData.images||[])].filter(Boolean).slice(0,2);
+      const floorTargets = (formData.floorImages||[]).filter(Boolean).slice(0,2);
+      const [perspImgs, floorImgs] = await Promise.all([
+        Promise.all(perspTargets.map(url=>resizeImageToBase64(url, 800))),
+        Promise.all(floorTargets.map(url=>resizeImageToBase64(url, 800))),
+      ]);
+      const validImgs = [...perspImgs.filter(Boolean), ...floorImgs.filter(Boolean)];
 
       const styleInfo = `建物タイプ:${formData.buildType||''} スタイル:${formData.style||''} 間取り:${formData.layout||''} 階数:${formData.floors||''}`;
       const roomInfo = (formData.rooms||[]).filter(r=>r.name).map(r=>`${r.name}${r.jyou?r.jyou+'帖':''}`).join('・');
+      const allFeatures = FEAT_CATEGORIES.flatMap(c=>c.items).join('・');
 
       const res = await fetch('/api/analyze',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           model:'claude-sonnet-4-20250514',
-          max_tokens:1500,
+          max_tokens:2000,
           messages:[{
             role:'user',
             content:[
@@ -1996,20 +2009,22 @@ export default function App(){
 
 建物情報: ${styleInfo}
 部屋構成: ${roomInfo||'不明'}
+選択可能なこだわりタグ: ${allFeatures}
 
-以下のJSON形式のみで返してください（説明文一切不要）:
+【面積の読み取り方】
+間取り図に「1F 67.23㎡」「延床面積 123.45㎡」「敷地面積 200.00㎡」などの数値が記載されていればそれを読み取ってください。
+記載がない場合は "" にしてください。数値のみ（単位なし）で返してください。
+
+以下のJSON形式のみで返してください（余計な文字一切不要）:
 {
-  "title": "キャッチーで詩的な住宅タイトル（15文字以内・漢字ひらがな混じり）",
+  "title": "キャッチーで詩的な住宅タイトル（15文字以内）",
   "subtitle": "暮らしの魅力を伝えるサブタイトル（30文字以内）",
-  "concept": "この家のコンセプトや設計の想いを3〜5文で（200文字程度・です・ます調）",
-  "highlights": [
-    "設計・空間の特徴1（20文字以内）",
-    "設計・空間の特徴2",
-    "設計・空間の特徴3",
-    "設計・空間の特徴4",
-    "設計・空間の特徴5"
-  ]
-}`}
+  "concept": "この家のコンセプトや設計の想いを3〜5文（200文字程度・です・ます調）",
+  "highlights": ["特徴1（20文字以内）","特徴2","特徴3","特徴4","特徴5"],
+  "features": ["タグ1","タグ2"],
+  "area": { "floor1": "67.23", "floor2": "55.00", "land": "200.00" }
+}
+※ area の値は数値文字列（例: "67.23"）または不明なら ""。絶対に説明文を入れないこと。`}
             ]
           }]
         })
@@ -2021,19 +2036,146 @@ export default function App(){
       const match = text.match(/\{[\s\S]*\}/);
       if(!match) throw new Error('生成結果を取得できませんでした');
       const result = JSON.parse(match[0]);
-      setFormData(f=>({
-        ...f,
-        title: result.title||f.title,
-        subtitle: result.subtitle||f.subtitle,
-        concept: result.concept||f.concept,
-        highlights: result.highlights?.length>0 ? result.highlights : f.highlights,
-      }));
-      alert('タイトル・サブタイトル・コンセプト・ハイライトを生成しました！内容を確認して必要に応じて修正してください。');
+      setFormData(f=>{
+        const f1 = result.area?.floor1 || f.area?.floor1 || "";
+        const f2 = result.area?.floor2 || f.area?.floor2 || "";
+        const land = result.area?.land || f.area?.land || "";
+        const total = f1 && f2 ? (Number(f1)+Number(f2)).toFixed(2) : f1||f2||f.area?.total||"";
+        const tsubo = total ? (Number(total)/3.306).toFixed(1) : f.tsubo||"";
+        return {
+          ...f,
+          title: result.title||f.title,
+          subtitle: result.subtitle||f.subtitle,
+          concept: result.concept||f.concept,
+          highlights: result.highlights?.length>0 ? result.highlights : f.highlights,
+          features: result.features?.length>0 ? result.features : f.features,
+          area: { ...f.area, floor1: f1, floor2: f2, land, total },
+          tsubo,
+        };
+      });
+      alert('タイトル・コンセプト・こだわり・面積を生成しました！内容を確認して必要に応じて修正してください。');
     } catch(e) {
       alert('AI生成エラー: '+e.message);
     } finally {
       setAiGenerating(false);
     }
+  }
+
+  async function batchAutoGenerate() {
+    const targets = cases.filter(c=>{
+      const hasImg = !!(c.image||(c.images||[]).length>0||(c.floorImages||[]).length>0);
+      const missingData = !c.concept || !(c.features||[]).length || !c.area?.floor1;
+      return hasImg && missingData;
+    });
+    if(targets.length===0){ alert('未入力の物件（画像あり）が見つかりませんでした'); return; }
+    if(!window.confirm(`${targets.length}件の物件にAI自動入力を行います。しばらく時間がかかります。よろしいですか？`)) return;
+    setBatchProcessing(true);
+    setBatchProgress({done:0,total:targets.length,errors:0});
+    const allFeatures = FEAT_CATEGORIES.flatMap(c=>c.items).join('・');
+    let errors = 0;
+    for(let i=0;i<targets.length;i++){
+      const c = targets[i];
+      try {
+        const perspTargets = [c.image,...(c.images||[])].filter(Boolean).slice(0,2);
+        const floorTargets = (c.floorImages||[]).filter(Boolean).slice(0,2);
+        const [perspImgs, floorImgs] = await Promise.all([
+          Promise.all(perspTargets.map(url=>resizeImageToBase64(url, 800))),
+          Promise.all(floorTargets.map(url=>resizeImageToBase64(url, 800))),
+        ]);
+        const validImgs = [...perspImgs.filter(Boolean), ...floorImgs.filter(Boolean)];
+        if(validImgs.length===0){ errors++; setBatchProgress(p=>({...p,done:p.done+1,errors:p.errors+1})); continue; }
+
+        const styleInfo = `建物タイプ:${c.buildType||''} スタイル:${c.style||''} 間取り:${c.layout||''} 階数:${c.floors||''}`;
+        const roomInfo = (c.rooms||[]).filter(r=>r.name).map(r=>`${r.name}${r.jyou?r.jyou+'帖':''}`).join('・');
+
+        const res = await fetch('/api/analyze',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-20250514',
+            max_tokens:2000,
+            messages:[{
+              role:'user',
+              content:[
+                ...validImgs,
+                {type:'text',text:`あなたは住宅プレゼンのプロライターです。
+画像と以下の情報から、住宅のプレゼン資料用テキストを生成してください。
+
+建物情報: ${styleInfo}
+部屋構成: ${roomInfo||'不明'}
+選択可能なこだわりタグ: ${allFeatures}
+
+【面積の読み取り方】
+間取り図に「1F 67.23㎡」「延床面積 123.45㎡」「敷地面積 200.00㎡」などの数値が記載されていればそれを読み取ってください。
+記載がない場合は "" にしてください。数値のみ（単位なし）で返してください。
+
+以下のJSON形式のみで返してください（余計な文字一切不要）:
+{
+  "title": "キャッチーで詩的な住宅タイトル（15文字以内）",
+  "subtitle": "暮らしの魅力を伝えるサブタイトル（30文字以内）",
+  "concept": "この家のコンセプトや設計の想いを3〜5文（200文字程度・です・ます調）",
+  "highlights": ["特徴1（20文字以内）","特徴2","特徴3","特徴4","特徴5"],
+  "features": ["タグ1","タグ2"],
+  "area": { "floor1": "67.23", "floor2": "55.00", "land": "200.00" }
+}
+※ area の値は数値文字列（例: "67.23"）または不明なら ""。絶対に説明文を入れないこと。`}
+              ]
+            }]
+          })
+        });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if(data.error) throw new Error(data.error.message||'APIエラー');
+        const text = data.content?.[0]?.text||'';
+        const match = text.match(/\{[\s\S]*\}/);
+        if(!match) throw new Error('生成結果を取得できませんでした');
+        const result = JSON.parse(match[0]);
+
+        const f1 = result.area?.floor1 || c.area?.floor1 || "";
+        const f2 = result.area?.floor2 || c.area?.floor2 || "";
+        const land = result.area?.land || c.area?.land || "";
+        const total = f1 && f2 ? (Number(f1)+Number(f2)).toFixed(2) : f1||f2||c.area?.total||"";
+        const tsubo = total ? (Number(total)/3.306).toFixed(1) : c.tsubo||"";
+
+        const updated = {
+          ...c,
+          title: result.title||c.title,
+          subtitle: result.subtitle||c.subtitle,
+          concept: result.concept||c.concept,
+          highlights: result.highlights?.length>0 ? result.highlights : (c.highlights||[]),
+          features: result.features?.length>0 ? result.features : (c.features||[]),
+          area: { ...(c.area||{}), floor1: f1, floor2: f2, land, total },
+          tsubo,
+        };
+        await sbUpdateCase(config.url, config.key, c._sbId, updated);
+        setCases(p=>p.map(x=>x._sbId===c._sbId?{...updated,_sbId:c._sbId}:x));
+      } catch(e) {
+        errors++;
+      }
+      setBatchProgress({done:i+1,total:targets.length,errors});
+      if(i<targets.length-1) await new Promise(r=>setTimeout(r,500));
+    }
+    setBatchProcessing(false);
+    alert(`一括AI自動入力が完了しました。\n成功: ${targets.length-errors}件 / エラー: ${errors}件`);
+  }
+
+  async function batchApplyDefaultSpecs() {
+    const targets = cases.filter(c => {
+      const sp = c.specs || {};
+      return Object.keys(DEFAULT_SPECS).some(k => DEFAULT_SPECS[k] && !sp[k]);
+    });
+    if(targets.length===0){ alert('仕様が未入力の物件が見つかりませんでした'); return; }
+    if(!window.confirm(`${targets.length}件の物件の未入力仕様にデフォルト値を適用します。よろしいですか？`)) return;
+    let errors = 0;
+    for(const c of targets){
+      try{
+        const newSpecs = Object.fromEntries(Object.keys(DEFAULT_SPECS).map(k=>[k,(c.specs||{})[k]||(DEFAULT_SPECS[k]||"")]));
+        const updated = {...c, specs: newSpecs};
+        await sbUpdateCase(config.url, config.key, c._sbId, updated);
+        setCases(p=>p.map(x=>x._sbId===c._sbId?{...updated,_sbId:c._sbId}:x));
+      }catch(e){ errors++; }
+    }
+    alert(`仕様デフォルト適用が完了しました。\n成功: ${targets.length-errors}件 / エラー: ${errors}件`);
   }
 
   // ドラッグ＆ドロップ（部屋）
@@ -2091,7 +2233,14 @@ export default function App(){
         <div style={{maxWidth:1100,margin:"0 auto",padding:"28px 28px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
               <h2 style={{margin:0,fontSize:20}}>間取り事例の管理</h2>
-              <div style={{display:"flex",gap:8}}><button onClick={()=>fetchCases(config)} style={{padding:"7px 14px",border:"1px solid #c9b89a",borderRadius:7,background:"white",cursor:"pointer",fontSize:12}}>↺</button><button onClick={openNew} style={{padding:"9px 20px",background:"#c9a96e",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>＋ 新規追加</button></div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                <button onClick={batchAutoGenerate} disabled={batchProcessing} style={{padding:"9px 16px",background:batchProcessing?"#a89a8a":"#1e3a5f",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:batchProcessing?"not-allowed":"pointer",fontWeight:700}}>
+                  {batchProcessing?`⏳ 処理中... ${batchProgress.done}/${batchProgress.total}件`:"🤖 未入力物件を一括AI自動入力"}
+                </button>
+                <button onClick={batchApplyDefaultSpecs} style={{padding:"9px 16px",background:"#5a7a5a",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>⚙ 仕様デフォルト一括適用</button>
+                <button onClick={()=>fetchCases(config)} style={{padding:"7px 14px",border:"1px solid #c9b89a",borderRadius:7,background:"white",cursor:"pointer",fontSize:12}}>↺</button>
+                <button onClick={openNew} style={{padding:"9px 20px",background:"#c9a96e",color:"white",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>＋ 新規追加</button>
+              </div>
           </div>
           {cases.length===0&&!loading&&<div style={{textAlign:"center",padding:"60px",color:"#8a7a6a"}}><div style={{fontSize:40,opacity:.3,marginBottom:10}}>🏠</div><div>事例がまだありません</div></div>}
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:18}}>
